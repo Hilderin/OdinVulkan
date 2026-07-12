@@ -11,7 +11,6 @@ main :: proc() {
 	fmt.println("Test setup")
 	fmt.println("--------------------------")
 
-
 	// Test GLFW...
 	glfw.WindowHint(glfw.RESIZABLE, 0)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
@@ -43,9 +42,7 @@ main :: proc() {
 	instance: vk.Instance
 	result = vk.CreateInstance(&createInfo, nil, &instance)
 	if result != vk.Result.SUCCESS {
-		fmt.eprintln(
-			"Failed to create Vulkan instance. Check if your hardware supports Vulkan and your Graphics Card drvier installation.",
-		)
+		fmt.eprintln("Failed to create Vulkan instance. Check if your hardware supports Vulkan and your Graphics Card drvier installation.")
 		os.exit(1)
 	}
 	vk.load_proc_addresses_instance(instance)
@@ -72,10 +69,7 @@ check_ValidationLayerSupport :: proc() -> b32 {
 	availableLayers := make([]vk.LayerProperties, layerCount)
 	vk.EnumerateInstanceLayerProperties(&layerCount, raw_data(availableLayers))
 
-	compare_strings :: proc(
-		layerProperties: vk.LayerProperties,
-		validation_string: cstring,
-	) -> bool {
+	compare_strings :: proc(layerProperties: vk.LayerProperties, validation_string: cstring) -> bool {
 		// Cannot directly slice from "layerProperties.layerName
 		bytes: [256]u8 = layerProperties.layerName
 		builder := strings.clone_from_bytes(bytes[:])

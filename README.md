@@ -19,6 +19,10 @@ Follow instructions in the [prerequisites section](docs/prerequisites.md).
 
 
 
+## Todo:
+
+- Documentation for odinfmt.json
+
 
 
 

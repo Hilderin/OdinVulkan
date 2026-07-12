@@ -21,7 +21,7 @@ main :: proc() {
 		os.exit(1)
 	}
 
-	fmt.eprintln("GLFW... OK!")
+	fmt.println("GLFW... OK!")
 
 	// Test Vulkan SDK...
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
@@ -34,17 +34,9 @@ main :: proc() {
 	appInfo.engineVersion = vk.MAKE_VERSION(1, 0, 0)
 	appInfo.apiVersion = vk.API_VERSION_1_0
 
-
 	createInfo: vk.InstanceCreateInfo
 	createInfo.sType = vk.StructureType.INSTANCE_CREATE_INFO
 	createInfo.pApplicationInfo = &appInfo
-
-	extensions := glfw.GetRequiredInstanceExtensions()
-	glfwExtCount := u32(len(extensions))
-	extensionsC := raw_data(glfw.GetRequiredInstanceExtensions())
-
-	createInfo.enabledExtensionCount = glfwExtCount
-	createInfo.ppEnabledExtensionNames = extensionsC
 	createInfo.enabledLayerCount = 0
 	result: vk.Result
 
@@ -57,7 +49,7 @@ main :: proc() {
 		os.exit(1)
 	}
 	vk.load_proc_addresses_instance(instance)
-	fmt.eprintln("Vulkan... OK!")
+	fmt.println("Vulkan... OK!")
 
 	// Vulkan SDK...
 	if !check_ValidationLayerSupport() {
@@ -65,7 +57,7 @@ main :: proc() {
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SFK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
 	}
-	fmt.eprintln("Vulkan SDK... OK!")
+	fmt.println("Vulkan SDK... OK!")
 
 	fmt.println()
 	fmt.println("Good job, everything is setup correctly!")

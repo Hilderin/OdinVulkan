@@ -1,0 +1,77 @@
+{
+   "version": "2.0.0",
+   "tasks": [
+       {
+           "label": "Create build directory - Debug",
+           "type": "shell",
+           "linux": {
+               "command": "mkdir -p ./bin/debug"
+           },
+           "windows": {
+               "command": "cmd",
+               "args": ["/C", "if not exist ./bin/debug mkdir ./bin/debug"]
+           },
+       },
+       {
+           "label": "Create build directory - Release",
+           "type": "shell",
+           "linux": {
+               "command": "mkdir -p ./bin/release"
+           },
+           "windows": {
+               "command": "cmd",
+               "args": ["/C", "if not exist ./bin/release mkdir ./bin/release"]
+           }
+       },
+       {
+           "label": "Build - Debug",
+           "group": {
+               "kind": "build",
+               "isDefault": true
+           },
+           "dependsOn": "Create build directory - Debug",
+           "type": "process",
+           "command": "odin",
+           "args": [
+               "build",
+               "${workspaceFolder}",
+               "-debug",
+               "-vet",
+               "-strict-style",
+               "-show-timings"
+           ],
+           "options": {
+               "cwd": "${workspaceFolder}/bin/debug"
+           }
+       },
+       {
+           "label": "Build - Release",
+           "group": "build",
+           "dependsOn": "Create build directory - Release",
+           "type": "process",
+           "command": "odin",
+           "args": [
+               "build",
+               "${workspaceFolder}",
+               "-vet",
+               "-strict-style",
+               "-show-timings"
+           ],
+           "options": {
+               "cwd": "${workspaceFolder}/bin/release"
+           }
+       },
+       {
+           "label": "Check",
+           "group": "build",
+           "type": "process",
+           "command": "odin",
+           "args": [
+               "check",
+               "${workspaceFolder}",
+               "-vet",
+               "-strict-style"
+           ]
+       }
+   ]
+}

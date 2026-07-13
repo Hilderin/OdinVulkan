@@ -9,13 +9,15 @@ The full source for this step lives in [`src/01_test_setup/main.odin`](../src/01
 
 ## What we want to prove
 
-Three things, in order:
+Five things, in order:
 
 1. **GLFW** can initialise.
 2. **Vulkan** can create an `Instance`.
-3. The **Vulkan SDK** (specifically the validation layers) is installed and discoverable.
+3. The **VULKAN_SDK** environment variable points to a valid SDK installation.
+4. The **Vulkan validation layers** are installed and discoverable.
+5. The **slang compiler** (`slangc`) is present in the SDK.
 
-If all three pass, we're ready to actually build something. If any of them fails, the error message will (hopefully) point you back to the [prerequisites](./prerequisites.md) doc.
+If all five pass, we're ready to actually build something. If any of them fails, the error message will (hopefully) point you back to the [prerequisites](./prerequisites.md) doc.
 
 
 ## The code, step by step
@@ -123,20 +125,37 @@ Vulkan functions return a `vk.Result` instead of throwing. So it's:
 
 Oh, and after creating the instance, we call `load_proc_addresses_instance(instance)`. Why? Because *instance-level* functions (everything that isn't `vk.GetInstanceProcAddr`, `vk.CreateInstance` or the enumeration helpers) need a live instance handle to be loaded. That's how Vulkan works.
 
-#### Checking the SDK
+#### Checking the VULKAN_SDK path
+
+```odin
+vulkan_sdk, found := os.lookup_env("VULKAN_SDK", context.allocator)
+defer delete(vulkan_sdk)
+if !found || vulkan_sdk == "" {
+    fmt.eprintln("VULKAN_SDK environment variable is not set. ...")
+    os.exit(1)
+}
+fmt.println("Vulkan SDK path... OK!")
+```
+
+We ask the OS for the `VULKAN_SDK` environment variable. If it's missing or empty, there's no point continuing — Vulkan SDK tools and layers won't be found either. The `defer delete(vulkan_sdk)` frees the string Odin allocated for us.
+
+The only way to fix this is to install the SDK and set the variable. The [prerequisites](./prerequisites.md) doc has the links.
+
+#### Checking the validation layers
 
 ```odin
 if !check_validation_layer_support() {
     fmt.eprintln(
         "Vulkan validation layers not available. The Vulkan SDK is not correctly installed. ..."
     )
+    os.exit(1)
 }
-fmt.println("Vulkan SDK... OK!")
+fmt.println("Vulkan validation layers... OK!")
 ```
 
-The SDK ships with a validation layer named `VK_LAYER_KHRONOS_validation`. If we can find it at runtime, the `VULKAN_SDK` environment variable is good and the tools are installed. If not, we don't exit — we just print a warning — because on a consumer machine your end users won't have the SDK either, and that shouldn't be fatal.
+The SDK ships a validation layer named `VK_LAYER_KHRONOS_validation`. If we *can't* find it at runtime, something is wrong with the SDK installation — the variable might be set but point to an incomplete SDK, or the layer wasn't deployed. In either case it's a hard error so we exit.
 
-The helper that does the actual searching:
+The helper that does the searching:
 
 ```odin
 check_validation_layer_support :: proc() -> b32 {
@@ -165,6 +184,21 @@ You'll see this pattern *everywhere* in Vulkan. Get comfortable with it — it's
 
 Then we loop over what we got and compare each `layerName` against `"VK_LAYER_KHRONOS_validation"`. The name is a fixed-size char array inside `LayerProperties`, so `cstring(&...[0])` casts it into a proper Odin string for comparison. A small bit of pointer wrangling, but it's a one-liner.
 
+#### Checking for the slang compiler
+
+```odin
+slangc_path := fmt.tprintf("%s/bin/slangc", vulkan_sdk)
+if !os.exists(slangc_path) {
+    fmt.eprintfln("slangc executable not found: '%q'. ...", slangc_path)
+    os.exit(1)
+}
+fmt.println("Slang compiler found... OK!")
+```
+
+`slangc` is the shader compiler that comes bundled with the Vulkan SDK under `$VULKAN_SDK/bin/slangc`. Since we'll write shaders in Slang later, we need to know the compiler is reachable before we rely on it.
+
+We build the full path from `VULKAN_SDK` (already validated), then check if the file exists. If `slangc` isn't there, the SDK installation is incomplete or outdated.
+
 
 ## Run it
 
@@ -182,7 +216,9 @@ Test setup
 --------------------------
 GLFW... OK!
 Vulkan... OK!
-Vulkan SDK... OK!
+Vulkan SDK path... OK!
+Vulkan validation layers... OK!
+Slang compiler found... OK!
 
 Good job, everything is setup correctly!
 ```

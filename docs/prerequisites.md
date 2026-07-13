@@ -70,17 +70,53 @@ Follow instructions:
 
 
 ## GLFW
-sudo apt install libglfw3-dev
 
+On Linux, you will need to install the precompiled GLFW librairy:
+```
+sudo apt install libglfw3-dev
+```
+**TO COMPLETE FOR WINDOWS, MAC, NON DEBIAN LINUX**
+
+
+## Slang extension
+
+I suggest you install the `Slang` extension for VSCode to have color highlighting and errors when editing shaders (.slang files).
+
+Search for 'Slang' in the Extensions panel in VSCode and click install.
+
+
+For more information: https://github.com/shader-slang/slang-vscode-extension
+
+If you want autoformatting, you will need `clang-format` installed:
+Linux:
+```
+sudo apt install clang-format
+```
+**TO COMPLETE FOR WINDOWS, MAC, NON DEBIAN LINUX**
 
 
 ## Testing your installation
 
+Open the folder `src/01_test_setup` using VSCode or your editor of choice and build and start the project (F5 by default in VSCode).
+
+If all goes right, you should see in the terminal something like:
+
+```
+Test setup
+--------------------------
+GLFW... OK!
+Vulkan... OK!
+Vulkan SDK path... OK!
+Vulkan validation layers... OK!
+Slang compiler found... OK!
+
+Good job, everything is setup correctly!
+```
 
 
+Note: The first time you will start debugging in VSCode, there's a delay of a couple of seconds for some reason.
 
-
-Note: The first time you will start debugging.
+Refer to the Troubleshooting section if you need help.
 
 
 

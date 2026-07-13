@@ -22,17 +22,17 @@ main :: proc() {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 
 	app_info := vk.ApplicationInfo {
-		sType = vk.StructureType.APPLICATION_INFO,
-		pApplicationName = "Test setup",
+		sType              = vk.StructureType.APPLICATION_INFO,
+		pApplicationName   = "Test setup",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
-		pEngineName = "No Engine",
-		engineVersion = vk.MAKE_VERSION(1, 0, 0),
-		apiVersion = vk.API_VERSION_1_0,
+		pEngineName        = "No Engine",
+		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
+		apiVersion         = vk.API_VERSION_1_0,
 	}
 
 	create_info := vk.InstanceCreateInfo {
-		sType = vk.StructureType.INSTANCE_CREATE_INFO,
-		pApplicationInfo = &app_info,
+		sType             = vk.StructureType.INSTANCE_CREATE_INFO,
+		pApplicationInfo  = &app_info,
 		enabledLayerCount = 0,
 	}
 
@@ -45,13 +45,34 @@ main :: proc() {
 	vk.load_proc_addresses_instance(instance)
 	fmt.println("Vulkan... OK!")
 
-	// Vulkan SDK...
+	// Check to find VULKAN_SDK path
+	vulkan_sdk, found := os.lookup_env("VULKAN_SDK", context.allocator)
+	defer delete(vulkan_sdk)
+	if !found || vulkan_sdk == "" {
+		fmt.eprintln("VULKAN_SDK environment variable is not set. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest")
+		os.exit(1)
+	}
+	fmt.println("Vulkan SDK path... OK!")
+
+	// Vulkan SDK validation layers...
 	if !check_validation_layer_support() {
 		fmt.eprintln(
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
+		os.exit(1)
 	}
-	fmt.println("Vulkan SDK... OK!")
+	fmt.println("Vulkan validation layers... OK!")
+
+	// Check to find the slang compiler (slangc)
+	slangc_path := fmt.tprintf("%s/bin/slangc", vulkan_sdk)
+	if !os.exists(slangc_path) {
+		fmt.eprintfln(
+			"slangc executable not found: '%q'. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
+			slangc_path,
+		)
+		os.exit(1)
+	}
+	fmt.println("Slang compiler found... OK!")
 
 	fmt.println()
 	fmt.println("Good job, everything is setup correctly!")

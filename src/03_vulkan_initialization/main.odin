@@ -8,7 +8,6 @@ import "vendor:glfw"
 import vk "vendor:vulkan"
 
 // Globals needed for debug messenger cleanup.
-g_instance: vk.Instance = nil
 g_debug_messenger: vk.DebugUtilsMessengerEXT = {}
 
 // Debug level — controls which severities are enabled and printed.
@@ -132,8 +131,9 @@ main :: proc() {
 
 
 	// Create Vulkan instance...
+	instance: vk.Instance
 	result: bool
-	g_instance, result = createInstance()
+	instance, result = createInstance()
 	if (!result) {
 		fmt.eprintln("Create instance failed.")
 		os.exit(1)
@@ -144,10 +144,10 @@ main :: proc() {
 	fmt.println("Vulkan initialization completed with success!")
 
 	// Cleanup
-	if g_instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
-		vk.DestroyDebugUtilsMessengerEXT(g_instance, g_debug_messenger, nil)
+	if instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
+		vk.DestroyDebugUtilsMessengerEXT(instance, g_debug_messenger, nil)
 	}
-	if g_instance != nil {
-		vk.DestroyInstance(g_instance, nil)
+	if instance != nil {
+		vk.DestroyInstance(instance, nil)
 	}
 }

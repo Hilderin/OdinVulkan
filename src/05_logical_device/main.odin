@@ -8,11 +8,13 @@ import "vendor:glfw"
 import vk "vendor:vulkan"
 
 // Globals needed for debug messenger cleanup.
-g_instance: vk.Instance = nil
 g_debug_messenger: vk.DebugUtilsMessengerEXT = {}
 
 // Debug level — controls which severities are enabled and printed.
 g_debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
+
+// Required extensions
+g_requiredExtensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 
 
 debug_callback :: proc "system" (
@@ -186,28 +188,24 @@ scoreDevice :: proc(device: vk.PhysicalDevice) -> int {
 	}
 
 	// Must support all required device extensions.
-	requiredExtensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
+	extCount: u32 = 0
+	vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, nil)
+	availableExts := make([]vk.ExtensionProperties, extCount)
+	defer delete(availableExts)
+	vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, raw_data(availableExts))
 
-	{
-		extCount: u32 = 0
-		vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, nil)
-		availableExts := make([]vk.ExtensionProperties, extCount)
-		defer delete(availableExts)
-		vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, raw_data(availableExts))
-
-		for reqExt in requiredExtensions {
-			found := false
-			for i in 0 ..< len(availableExts) {
-				extName := string(cstring(&availableExts[i].extensionName[0]))
-				if extName == string(reqExt) {
-					found = true
-					break
-				}
+	for reqExt in g_requiredExtensions {
+		found := false
+		for i in 0 ..< len(availableExts) {
+			extName := string(cstring(&availableExts[i].extensionName[0]))
+			if extName == string(reqExt) {
+				found = true
+				break
 			}
-			if !found {
-				fmt.printfln("  %q — missing required extension %s (skipped)", name, string(reqExt))
-				return -1
-			}
+		}
+		if !found {
+			fmt.printfln("  %q — missing required extension %s (skipped)", name, string(reqExt))
+			return -1
 		}
 	}
 
@@ -247,9 +245,9 @@ scoreDevice :: proc(device: vk.PhysicalDevice) -> int {
 	return score
 }
 
-pickPhysicalDevice :: proc() -> (vk.PhysicalDevice, bool) {
+pickPhysicalDevice :: proc(instance: vk.Instance) -> (vk.PhysicalDevice, bool) {
 	devCount: u32 = 0
-	vk.EnumeratePhysicalDevices(g_instance, &devCount, nil)
+	vk.EnumeratePhysicalDevices(instance, &devCount, nil)
 	if devCount == 0 {
 		fmt.eprintln("failed to find GPUs with Vulkan support!")
 		return nil, false
@@ -257,7 +255,7 @@ pickPhysicalDevice :: proc() -> (vk.PhysicalDevice, bool) {
 
 	physicalDevices := make([]vk.PhysicalDevice, devCount)
 	defer delete(physicalDevices)
-	vk.EnumeratePhysicalDevices(g_instance, &devCount, raw_data(physicalDevices))
+	vk.EnumeratePhysicalDevices(instance, &devCount, raw_data(physicalDevices))
 
 	bestScore := -1
 	bestDevice: vk.PhysicalDevice = nil
@@ -279,6 +277,56 @@ pickPhysicalDevice :: proc() -> (vk.PhysicalDevice, bool) {
 	return bestDevice, true
 }
 
+createLogicalDevice :: proc(physical_device: vk.PhysicalDevice) -> (vk.Device, vk.Queue, bool) {
+
+	queue_index, ok := findQueueFamilies(physical_device, {.GRAPHICS})
+	if !ok {
+		fmt.eprintfln("No graphics queue found on physical device.")
+		return nil, nil, false
+	}
+
+	queueCreateInfo: vk.DeviceQueueCreateInfo
+	queueCreateInfo.sType = vk.StructureType.DEVICE_QUEUE_CREATE_INFO
+	queueCreateInfo.queueFamilyIndex = queue_index
+	queueCreateInfo.queueCount = 1
+	queuePriority: f32 = 0.5
+	queueCreateInfo.pQueuePriorities = &queuePriority
+
+	//deviceFeatures: vk.PhysicalDeviceFeatures
+	//deviceFeatures.pne
+
+	deviceFeature2: vk.PhysicalDeviceFeatures2
+	deviceFeatureVulkan11: vk.PhysicalDeviceVulkan11Features
+	deviceFeatureVulkan11.shaderDrawParameters = true // Enable shader draw parameters from Vulkan 1.1
+	deviceFeatureVulkan13: vk.PhysicalDeviceVulkan13Features
+	deviceFeatureVulkan13.dynamicRendering = true // Enable dynamic rendering from Vulkan 1.3
+	deviceFeatureExtendedDynamicState: vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT
+	deviceFeatureExtendedDynamicState.extendedDynamicState = true // Enable extended dynamic state from the extension
+
+	deviceFeature2.pNext = &deviceFeatureVulkan11
+	deviceFeatureVulkan11.pNext = &deviceFeatureVulkan13
+	deviceFeatureVulkan13.pNext = &deviceFeatureExtendedDynamicState
+
+	createInfo: vk.DeviceCreateInfo
+	createInfo.sType = vk.StructureType.DEVICE_CREATE_INFO
+	createInfo.pQueueCreateInfos = &queueCreateInfo
+	createInfo.queueCreateInfoCount = 1
+	createInfo.enabledExtensionCount = u32(len(g_requiredExtensions))
+	createInfo.ppEnabledExtensionNames = raw_data(g_requiredExtensions)
+	createInfo.pNext = &deviceFeature2
+
+
+	device: vk.Device
+	if vk.CreateDevice(physical_device, &createInfo, nil, &device) != vk.Result.SUCCESS {
+		fmt.eprintln("Failed to create logical device!")
+	}
+
+	queue: vk.Queue
+	vk.GetDeviceQueue(device, queue_index, 0, &queue)
+
+	return device, queue, true
+}
+
 main :: proc() {
 	fmt.println("Vulkan initialization")
 	fmt.println("-------------------------------------------")
@@ -293,8 +341,9 @@ main :: proc() {
 
 
 	// Create Vulkan instance...
+	instance: vk.Instance
 	result: bool
-	g_instance, result = createInstance()
+	instance, result = createInstance()
 	if (!result) {
 		fmt.eprintln("Create instance failed.")
 		os.exit(1)
@@ -304,21 +353,34 @@ main :: proc() {
 
 	// Pick physical device
 	physical_device: vk.PhysicalDevice
-	physical_device, result = pickPhysicalDevice()
+	physical_device, result = pickPhysicalDevice(instance)
 	if !result {
 		fmt.eprintln("Compatible physical device not found.")
 		os.exit(1)
 	}
+	fmt.println("Physical device... OK")
+
+	// Create logical device
+	device: vk.Device
+	device, _, result = createLogicalDevice(physical_device)
+	if !result {
+		fmt.eprintln("Failed to create logical device.")
+		os.exit(1)
+	}
+	fmt.println("Logical device... OK")
 
 
 	fmt.println()
 	fmt.println("Vulkan initialization completed with success!")
 
 	// Cleanup
-	if g_instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
-		vk.DestroyDebugUtilsMessengerEXT(g_instance, g_debug_messenger, nil)
+	if device != nil {
+		vk.DestroyDevice(device, nil)
 	}
-	if g_instance != nil {
-		vk.DestroyInstance(g_instance, nil)
+	if instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
+		vk.DestroyDebugUtilsMessengerEXT(instance, g_debug_messenger, nil)
+	}
+	if instance != nil {
+		vk.DestroyInstance(instance, nil)
 	}
 }

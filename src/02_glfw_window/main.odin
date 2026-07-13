@@ -12,10 +12,6 @@ main :: proc() {
 	fmt.println("My first window with GLFW")
 
 	// Initializing GLFW
-	// By default, GLFW initializes OpenGL, we don't want that, we just need a window.
-	glfw.WindowHint(glfw.RESIZABLE, 0)
-	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
-
 	if (!glfw.Init()) {
 		fmt.eprintln("Failed to initialize GLFW")
 		os.exit(1)

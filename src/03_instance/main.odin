@@ -45,8 +45,6 @@ main :: proc() {
 	fmt.println("Instance creation")
 	fmt.println("-------------------------------------------")
 
-	glfw.WindowHint(glfw.RESIZABLE, 0)
-	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 	if (!glfw.Init()) {
 		fmt.eprintln("Failed to initialize GLFW")
 		os.exit(1)

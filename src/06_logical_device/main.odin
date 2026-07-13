@@ -332,8 +332,6 @@ main :: proc() {
 	fmt.println("-------------------------------------------")
 
 	// We need to initialize GLFW so the glfw.GetInstanceProcAddress() method returns a valid callback to load Vulkan function addresses.
-	glfw.WindowHint(glfw.RESIZABLE, 0)
-	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 	if (!glfw.Init()) {
 		fmt.eprintln("Failed to initialize GLFW")
 		os.exit(1)

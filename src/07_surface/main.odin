@@ -13,6 +13,9 @@ g_debug_messenger: vk.DebugUtilsMessengerEXT = {}
 // Debug level — controls which severities are enabled and printed.
 g_debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
 
+// Required extensions
+g_requiredExtensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
+
 
 debug_callback :: proc "system" (
 	messageSeverity: vk.DebugUtilsMessageSeverityFlagsEXT,
@@ -115,7 +118,17 @@ check_ValidationLayerSupport :: proc() -> b32 {
 	return false
 }
 
-findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.QueueFlags) -> (u32, bool) {
+isPhysicalDeviceSupportSurface :: proc(physicalDevice: vk.PhysicalDevice, queueIndex: u32, surface: vk.SurfaceKHR) -> bool {
+	supported: b32
+	result := vk.GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueIndex, surface, &supported)
+	if result != .SUCCESS {
+		fmt.eprintln("Error getting physical device surface support.")
+		return false
+	}
+	return bool(supported)
+}
+
+findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.QueueFlags, surface: vk.SurfaceKHR) -> (u32, bool) {
 	queueFamilyCount: u32 = 0
 	vk.GetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil)
 
@@ -126,7 +139,9 @@ findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.Queu
 	i: u32 = 0
 	for queueFamily in queueFamilies {
 		if (queueFlags & queueFamily.queueFlags) == queueFlags {
-			return i, true
+			if surface == 0 || isPhysicalDeviceSupportSurface(physicalDevice, i, surface) {
+				return i, true
+			}
 		}
 		i += 1
 	}
@@ -160,7 +175,7 @@ getDeviceFeatures :: proc(
 	return vulkan11Features, vulkan13Features, extendedDynamicStateFeatures, features2.features
 }
 
-scoreDevice :: proc(device: vk.PhysicalDevice) -> int {
+scoreDevice :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 	props: vk.PhysicalDeviceProperties
 	vk.GetPhysicalDeviceProperties(device, &props)
 
@@ -179,34 +194,30 @@ scoreDevice :: proc(device: vk.PhysicalDevice) -> int {
 	}
 
 	// Must have at least a graphics queue family.
-	if _, ok := findQueueFamilies(device, {.GRAPHICS}); !ok {
+	if _, ok := findQueueFamilies(device, {.GRAPHICS}, surface); !ok {
 		fmt.printfln("  %q — no graphics queue (skipped)", name)
 		return -1
 	}
 
 	// Must support all required device extensions.
-	requiredExtensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
+	extCount: u32 = 0
+	vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, nil)
+	availableExts := make([]vk.ExtensionProperties, extCount)
+	defer delete(availableExts)
+	vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, raw_data(availableExts))
 
-	{
-		extCount: u32 = 0
-		vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, nil)
-		availableExts := make([]vk.ExtensionProperties, extCount)
-		defer delete(availableExts)
-		vk.EnumerateDeviceExtensionProperties(device, nil, &extCount, raw_data(availableExts))
-
-		for reqExt in requiredExtensions {
-			found := false
-			for i in 0 ..< len(availableExts) {
-				extName := string(cstring(&availableExts[i].extensionName[0]))
-				if extName == string(reqExt) {
-					found = true
-					break
-				}
+	for reqExt in g_requiredExtensions {
+		found := false
+		for i in 0 ..< len(availableExts) {
+			extName := string(cstring(&availableExts[i].extensionName[0]))
+			if extName == string(reqExt) {
+				found = true
+				break
 			}
-			if !found {
-				fmt.printfln("  %q — missing required extension %s (skipped)", name, string(reqExt))
-				return -1
-			}
+		}
+		if !found {
+			fmt.printfln("  %q — missing required extension %s (skipped)", name, string(reqExt))
+			return -1
 		}
 	}
 
@@ -246,7 +257,7 @@ scoreDevice :: proc(device: vk.PhysicalDevice) -> int {
 	return score
 }
 
-pickPhysicalDevice :: proc(instance: vk.Instance) -> (vk.PhysicalDevice, bool) {
+pickPhysicalDevice :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (vk.PhysicalDevice, bool) {
 	devCount: u32 = 0
 	vk.EnumeratePhysicalDevices(instance, &devCount, nil)
 	if devCount == 0 {
@@ -262,7 +273,7 @@ pickPhysicalDevice :: proc(instance: vk.Instance) -> (vk.PhysicalDevice, bool) {
 	bestDevice: vk.PhysicalDevice = nil
 
 	for device in physicalDevices {
-		s := scoreDevice(device)
+		s := scoreDevice(device, surface)
 		if s > bestScore {
 			bestScore = s
 			bestDevice = device
@@ -278,6 +289,80 @@ pickPhysicalDevice :: proc(instance: vk.Instance) -> (vk.PhysicalDevice, bool) {
 	return bestDevice, true
 }
 
+createLogicalDevice :: proc(physical_device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> (vk.Device, vk.Queue, bool) {
+
+	queue_index, ok := findQueueFamilies(physical_device, {.GRAPHICS}, surface)
+	if !ok {
+		fmt.eprintfln("No graphics queue found on physical device.")
+		return nil, nil, false
+	}
+
+	queueCreateInfo: vk.DeviceQueueCreateInfo
+	queueCreateInfo.sType = vk.StructureType.DEVICE_QUEUE_CREATE_INFO
+	queueCreateInfo.queueFamilyIndex = queue_index
+	queueCreateInfo.queueCount = 1
+	queuePriority: f32 = 0.5
+	queueCreateInfo.pQueuePriorities = &queuePriority
+
+	deviceFeature2: vk.PhysicalDeviceFeatures2
+	deviceFeatureVulkan11: vk.PhysicalDeviceVulkan11Features
+	deviceFeatureVulkan11.shaderDrawParameters = true // Enable shader draw parameters from Vulkan 1.1
+	deviceFeatureVulkan13: vk.PhysicalDeviceVulkan13Features
+	deviceFeatureVulkan13.dynamicRendering = true // Enable dynamic rendering from Vulkan 1.3
+	deviceFeatureExtendedDynamicState: vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT
+	deviceFeatureExtendedDynamicState.extendedDynamicState = true // Enable extended dynamic state from the extension
+
+	deviceFeature2.pNext = &deviceFeatureVulkan11
+	deviceFeatureVulkan11.pNext = &deviceFeatureVulkan13
+	deviceFeatureVulkan13.pNext = &deviceFeatureExtendedDynamicState
+
+	createInfo: vk.DeviceCreateInfo
+	createInfo.sType = vk.StructureType.DEVICE_CREATE_INFO
+	createInfo.pQueueCreateInfos = &queueCreateInfo
+	createInfo.queueCreateInfoCount = 1
+	createInfo.enabledExtensionCount = u32(len(g_requiredExtensions))
+	createInfo.ppEnabledExtensionNames = raw_data(g_requiredExtensions)
+	createInfo.pNext = &deviceFeature2
+
+
+	device: vk.Device
+	if vk.CreateDevice(physical_device, &createInfo, nil, &device) != vk.Result.SUCCESS {
+		fmt.eprintln("Failed to create logical device!")
+		return nil, nil, false
+	}
+
+	queue: vk.Queue
+	vk.GetDeviceQueue(device, queue_index, 0, &queue)
+
+	return device, queue, true
+}
+
+createWindow :: proc() -> (glfw.WindowHandle, bool) {
+	// By default, GLFW initializes OpenGL, we don't want that, we just need a window.
+	// Note: these lines must be executed after the glfw.init() otherwise they are ignored.
+	glfw.WindowHint(glfw.RESIZABLE, 0)
+	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
+
+	// Creating the window.
+	window := glfw.CreateWindow(512, 512, "My first window", nil, nil)
+	if window == nil {
+		fmt.eprintln("Unable to create window")
+		return nil, false
+	}
+	return window, true
+}
+
+createSurface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> (vk.SurfaceKHR, bool) {
+	surface: vk.SurfaceKHR
+	result := glfw.CreateWindowSurface(instance, window, nil, &surface)
+	if result != .SUCCESS {
+		fmt.eprintfln("Failed to create surface! VkResult=%v", result)
+		return 0, false
+	}
+
+	return surface, true
+}
+
 main :: proc() {
 	fmt.println("Vulkan initialization")
 	fmt.println("-------------------------------------------")
@@ -288,10 +373,10 @@ main :: proc() {
 		os.exit(1)
 	}
 
+	result: bool
 
 	// Create Vulkan instance...
 	instance: vk.Instance
-	result: bool
 	instance, result = createInstance()
 	if (!result) {
 		fmt.eprintln("Create instance failed.")
@@ -300,9 +385,29 @@ main :: proc() {
 	fmt.println("Create instance... OK")
 
 
+	// Create window
+	window: glfw.WindowHandle
+	window, result = createWindow()
+	if !result {
+		fmt.eprintln("Failed to create GLFW window.")
+		os.exit(1)
+	}
+	fmt.println("Window... OK")
+
+
+	// Create surface
+	surface: vk.SurfaceKHR
+	surface, result = createSurface(instance, window)
+	if !result {
+		fmt.eprintln("Failed to create surface.")
+		os.exit(1)
+	}
+	fmt.println("Surface... OK")
+
+
 	// Pick physical device
 	physical_device: vk.PhysicalDevice
-	physical_device, result = pickPhysicalDevice(instance)
+	physical_device, result = pickPhysicalDevice(instance, surface)
 	if !result {
 		fmt.eprintln("Compatible physical device not found.")
 		os.exit(1)
@@ -310,14 +415,33 @@ main :: proc() {
 	fmt.println("Physical device... OK")
 
 
+	// Create logical device
+	device: vk.Device
+	device, _, result = createLogicalDevice(physical_device, surface)
+	if !result {
+		fmt.eprintln("Failed to create logical device.")
+		os.exit(1)
+	}
+	fmt.println("Logical device... OK")
+
+
 	fmt.println()
 	fmt.println("Vulkan initialization completed with success!")
 
-	// Cleanup
+	if device != nil {
+		vk.DestroyDevice(device, nil)
+	}
 	if instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
 		vk.DestroyDebugUtilsMessengerEXT(instance, g_debug_messenger, nil)
+	}
+	if surface != 0 {
+		vk.DestroySurfaceKHR(instance, surface, nil)
 	}
 	if instance != nil {
 		vk.DestroyInstance(instance, nil)
 	}
+	if window != nil {
+		glfw.DestroyWindow(window)
+	}
+	glfw.Terminate()
 }

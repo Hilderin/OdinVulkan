@@ -2,7 +2,6 @@ package main
 
 import "core:fmt"
 import "core:os"
-import "core:strings"
 
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -67,18 +66,13 @@ check_ValidationLayerSupport :: proc() -> b32 {
 	layerCount: u32
 	vk.EnumerateInstanceLayerProperties(&layerCount, nil)
 	availableLayers := make([]vk.LayerProperties, layerCount)
+	defer delete(availableLayers)
 	vk.EnumerateInstanceLayerProperties(&layerCount, raw_data(availableLayers))
 
-	compare_strings :: proc(layerProperties: vk.LayerProperties, validation_string: cstring) -> bool {
-		// Cannot directly slice from "layerProperties.layerName
-		bytes: [256]u8 = layerProperties.layerName
-		builder := strings.clone_from_bytes(bytes[:])
-		cbuilder := strings.clone_to_cstring(builder)
-		return cbuilder == validation_string
-	}
-
-	for layerProperties in availableLayers {
-		if compare_strings(layerProperties, "VK_LAYER_KHRONOS_validation") == true do return true
+	for i in 0 ..< len(availableLayers) {
+		if cstring(&availableLayers[i].layerName[0]) == "VK_LAYER_KHRONOS_validation" {
+			return true
+		}
 	}
 	return false
 }

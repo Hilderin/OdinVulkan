@@ -121,17 +121,7 @@ check_ValidationLayerSupport :: proc() -> b32 {
 	return false
 }
 
-isPhysicalDeviceSupportSurface :: proc(physicalDevice: vk.PhysicalDevice, queueIndex: u32, surface: vk.SurfaceKHR) -> bool {
-	supported: b32
-	result := vk.GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueIndex, surface, &supported)
-	if result != .SUCCESS {
-		fmt.eprintln("Error getting physical device surface support.")
-		return false
-	}
-	return bool(supported)
-}
-
-findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.QueueFlags, surface: vk.SurfaceKHR) -> (u32, bool) {
+findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.QueueFlags) -> (u32, bool) {
 	queueFamilyCount: u32 = 0
 	vk.GetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil)
 
@@ -142,9 +132,7 @@ findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.Queu
 	i: u32 = 0
 	for queueFamily in queueFamilies {
 		if (queueFlags & queueFamily.queueFlags) == queueFlags {
-			if surface == 0 || isPhysicalDeviceSupportSurface(physicalDevice, i, surface) {
-				return i, true
-			}
+			return i, true
 		}
 		i += 1
 	}
@@ -178,7 +166,7 @@ getDeviceFeatures :: proc(
 	return vulkan11Features, vulkan13Features, extendedDynamicStateFeatures, features2.features
 }
 
-scoreDevice :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
+scoreDevice :: proc(device: vk.PhysicalDevice) -> int {
 	props: vk.PhysicalDeviceProperties
 	vk.GetPhysicalDeviceProperties(device, &props)
 
@@ -197,7 +185,7 @@ scoreDevice :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 	}
 
 	// Must have at least a graphics queue family.
-	if _, ok := findQueueFamilies(device, {.GRAPHICS}, surface); !ok {
+	if _, ok := findQueueFamilies(device, {.GRAPHICS}); !ok {
 		fmt.printfln("  %q — no graphics queue (skipped)", name)
 		return -1
 	}
@@ -260,7 +248,7 @@ scoreDevice :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 	return score
 }
 
-pickPhysicalDevice :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (vk.PhysicalDevice, bool) {
+pickPhysicalDevice :: proc(instance: vk.Instance) -> (vk.PhysicalDevice, bool) {
 	devCount: u32 = 0
 	vk.EnumeratePhysicalDevices(instance, &devCount, nil)
 	if devCount == 0 {
@@ -276,7 +264,7 @@ pickPhysicalDevice :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (vk
 	bestDevice: vk.PhysicalDevice = nil
 
 	for device in physicalDevices {
-		s := scoreDevice(device, surface)
+		s := scoreDevice(device)
 		if s > bestScore {
 			bestScore = s
 			bestDevice = device
@@ -292,9 +280,9 @@ pickPhysicalDevice :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (vk
 	return bestDevice, true
 }
 
-createLogicalDevice :: proc(physical_device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> (vk.Device, vk.Queue, bool) {
+createLogicalDevice :: proc(physical_device: vk.PhysicalDevice) -> (vk.Device, vk.Queue, bool) {
 
-	queue_index, ok := findQueueFamilies(physical_device, {.GRAPHICS}, surface)
+	queue_index, ok := findQueueFamilies(physical_device, {.GRAPHICS})
 	if !ok {
 		fmt.eprintfln("No graphics queue found on physical device.")
 		return nil, nil, false
@@ -306,6 +294,9 @@ createLogicalDevice :: proc(physical_device: vk.PhysicalDevice, surface: vk.Surf
 	queueCreateInfo.queueCount = 1
 	queuePriority: f32 = 0.5
 	queueCreateInfo.pQueuePriorities = &queuePriority
+
+	//deviceFeatures: vk.PhysicalDeviceFeatures
+	//deviceFeatures.pne
 
 	deviceFeature2: vk.PhysicalDeviceFeatures2
 	deviceFeatureVulkan11: vk.PhysicalDeviceVulkan11Features
@@ -331,7 +322,6 @@ createLogicalDevice :: proc(physical_device: vk.PhysicalDevice, surface: vk.Surf
 	device: vk.Device
 	if vk.CreateDevice(physical_device, &createInfo, nil, &device) != vk.Result.SUCCESS {
 		fmt.eprintln("Failed to create logical device!")
-		return nil, nil, false
 	}
 
 	queue: vk.Queue
@@ -353,17 +343,6 @@ createWindow :: proc() -> (glfw.WindowHandle, bool) {
 		return nil, false
 	}
 	return window, true
-}
-
-createSurface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> (vk.SurfaceKHR, bool) {
-	surface: vk.SurfaceKHR
-	result := glfw.CreateWindowSurface(instance, window, nil, &surface)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create surface! VkResult=%v", result)
-		return 0, false
-	}
-
-	return surface, true
 }
 
 main :: proc() {
@@ -397,30 +376,18 @@ main :: proc() {
 	}
 	fmt.println("Window... OK")
 
-
-	// Create surface
-	surface: vk.SurfaceKHR
-	surface, result = createSurface(instance, window)
-	if !result {
-		fmt.eprintln("Failed to create surface.")
-		os.exit(1)
-	}
-	fmt.println("Surface... OK")
-
-
 	// Pick physical device
 	physical_device: vk.PhysicalDevice
-	physical_device, result = pickPhysicalDevice(instance, surface)
+	physical_device, result = pickPhysicalDevice(instance)
 	if !result {
 		fmt.eprintln("Compatible physical device not found.")
 		os.exit(1)
 	}
 	fmt.println("Physical device... OK")
 
-
 	// Create logical device
 	device: vk.Device
-	device, _, result = createLogicalDevice(physical_device, surface)
+	device, _, result = createLogicalDevice(physical_device)
 	if !result {
 		fmt.eprintln("Failed to create logical device.")
 		os.exit(1)
@@ -455,9 +422,6 @@ main :: proc() {
 	}
 	if instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
 		vk.DestroyDebugUtilsMessengerEXT(instance, g_debug_messenger, nil)
-	}
-	if surface != 0 {
-		vk.DestroySurfaceKHR(instance, surface, nil)
 	}
 	if instance != nil {
 		vk.DestroyInstance(instance, nil)

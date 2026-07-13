@@ -41,11 +41,10 @@ The `vendor:` prefix is Odin's way of saying "this lives in the vendor folder of
 ### Proving GLFW works
 
 ```odin
-if (!glfw.Init()) {
+if !glfw.Init() {
     fmt.eprintln("Failed to initialize GLFW")
     os.exit(1)
 }
-fmt.println("GLFW... OK!")
 ```
 
 `glfw.Init()` returns `true` on success. If it returns `false`, we print to `stderr` and exit.
@@ -70,13 +69,14 @@ We pass it in here, before calling any Vulkan function, so Odin can populate its
 #### The ApplicationInfo
 
 ```odin
-appInfo: vk.ApplicationInfo
-appInfo.sType = vk.StructureType.APPLICATION_INFO
-appInfo.pApplicationName = "Test setup"
-appInfo.applicationVersion = vk.MAKE_VERSION(1, 0, 0)
-appInfo.pEngineName = "No Engine"
-appInfo.engineVersion = vk.MAKE_VERSION(1, 0, 0)
-appInfo.apiVersion = vk.API_VERSION_1_0
+app_info := vk.ApplicationInfo {
+    sType = vk.StructureType.APPLICATION_INFO,
+    pApplicationName = "Test setup",
+    applicationVersion = vk.MAKE_VERSION(1, 0, 0),
+    pEngineName = "No Engine",
+    engineVersion = vk.MAKE_VERSION(1, 0, 0),
+    apiVersion = vk.API_VERSION_1_0,
+}
 ```
 
 Vulkan loves structures, and structures start with an `sType` field that tells Vulkan *what kind* of structure this is. This is a recurring pattern — get used to adding an `sType` line every time you fill in a Vulkan struct.
@@ -86,26 +86,26 @@ The `ApplicationInfo` itself is just metadata: app name, version, engine name, a
 #### The InstanceCreateInfo
 
 ```odin
-createInfo: vk.InstanceCreateInfo
-createInfo.sType = vk.StructureType.INSTANCE_CREATE_INFO
-createInfo.pApplicationInfo = &appInfo
-createInfo.enabledLayerCount = 0
+create_info := vk.InstanceCreateInfo {
+    sType = vk.StructureType.INSTANCE_CREATE_INFO,
+    pApplicationInfo = &app_info,
+    enabledLayerCount = 0,
+}
 ```
 
 The `InstanceCreateInfo` is what we actually hand to Vulkan when we ask for an instance. Note three things here:
 
 - `enabledLayerCount = 0` — we're not enabling any validation layer *for this instance*. The test checks for layers separately, just below.
-- `pApplicationInfo` takes a *pointer* to the struct we just filled (`&appInfo`). Odin passes by value by default; Vulkan wants addresses.
+- `pApplicationInfo` takes a *pointer* to the struct we just filled (`&app_info`). Odin passes by value by default; Vulkan wants addresses.
 - No `enabledExtensionNames`? For a pure command-line test we don't need any. As soon as we want a window though, we'll have to ask for the `VK_KHR_surface` family of extensions. That comes in later steps.
 
-A small detail: in C, you'd have to remember to zero out the struct before filling it. Odin does that for us — anything not assigned on an `X: vk.SomeInfo` declaration starts zeroed.
+A small detail: in C, you'd have to remember to zero out the struct before filling it. Odin does that for us — anything not listed in a struct literal starts zeroed.
 
 #### Actually creating it
 
 ```odin
-result: vk.Result
 instance: vk.Instance
-result = vk.CreateInstance(&createInfo, nil, &instance)
+result := vk.CreateInstance(&create_info, nil, &instance)
 if result != vk.Result.SUCCESS {
     fmt.eprintln("Failed to create Vulkan instance. ...")
     os.exit(1)
@@ -126,7 +126,7 @@ Oh, and after creating the instance, we call `load_proc_addresses_instance(insta
 #### Checking the SDK
 
 ```odin
-if !check_ValidationLayerSupport() {
+if !check_validation_layer_support() {
     fmt.eprintln(
         "Vulkan validation layers not available. The Vulkan SDK is not correctly installed. ..."
     )
@@ -139,15 +139,15 @@ The SDK ships with a validation layer named `VK_LAYER_KHRONOS_validation`. If we
 The helper that does the actual searching:
 
 ```odin
-check_ValidationLayerSupport :: proc() -> b32 {
-    layerCount: u32
-    vk.EnumerateInstanceLayerProperties(&layerCount, nil)
-    availableLayers := make([]vk.LayerProperties, layerCount)
-    defer delete(availableLayers)
-    vk.EnumerateInstanceLayerProperties(&layerCount, raw_data(availableLayers))
+check_validation_layer_support :: proc() -> b32 {
+    layer_count: u32
+    vk.EnumerateInstanceLayerProperties(&layer_count, nil)
+    available_layers := make([]vk.LayerProperties, layer_count)
+    defer delete(available_layers)
+    vk.EnumerateInstanceLayerProperties(&layer_count, raw_data(available_layers))
 
-    for i in 0 ..< len(availableLayers) {
-        if cstring(&availableLayers[i].layerName[0]) == "VK_LAYER_KHRONOS_validation" {
+    for &layer in available_layers {
+        if cstring(&layer.layerName[0]) == "VK_LAYER_KHRONOS_validation" {
             return true
         }
     }
@@ -159,7 +159,7 @@ The classic Vulkan two-call pattern:
 
 1. Ask *how many* first (pass `nil` for the buffer, get back a count).
 2. Allocate a buffer of that size.
-3. Ask again, this time providing the buffer (`raw_data(availableLayers)` gives us a `rawptr` to the underlying array).
+3. Ask again, this time providing the buffer (`raw_data(available_layers)` gives us a `rawptr` to the underlying array).
 
 You'll see this pattern *everywhere* in Vulkan. Get comfortable with it — it's not going anywhere.
 
@@ -171,7 +171,7 @@ Then we loop over what we got and compare each `layerName` against `"VK_LAYER_KH
 Open the `src/01_test_setup/` folder in VSCode and hit `F5`. Or, from the command line:
 
 ```
-odin build . -debug -vet -strict-style -out:bin/debug/01_test_setup
+odin build . -debug -vet -strict-style -vet-tabs -disallow-do -warnings-as-errors -out:bin/debug/01_test_setup
 ./bin/debug/01_test_setup
 ```
 

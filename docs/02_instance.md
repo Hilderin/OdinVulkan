@@ -41,14 +41,14 @@ Same as the smoke test. `core:fmt` and `core:os` for printing and exiting, `vend
 ### Wrapping creation in a procedure
 
 ```odin
-createInstance :: proc() -> (vk.Instance, bool) {
+create_instance :: proc() -> (vk.Instance, bool) {
     vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
     ...
     return instance, true
 }
 ```
 
-The whole point of this step. Instead of doing `vk.CreateInstance` in `main` and moving on, we put it behind `createInstance` which returns a `(vk.Instance, bool)` pair: the handle, and a success flag.
+The whole point of this step. Instead of doing `vk.CreateInstance` in `main` and moving on, we put it behind `create_instance` which returns a `(vk.Instance, bool)` pair: the handle, and a success flag.
 
 This is a small Odin-ism worth getting used to. Vulkan functions don't throw, and Odin doesn't either, so the natural way to report a failure from a procedure is to return multiple values. The caller checks the `bool` and decides what to do. We could return a tagged union (`union(ok)`), but a plain tuple is honest enough here — there's exactly one interesting failure mode and we want a handle on success.
 
@@ -58,13 +58,14 @@ The first line inside the proc is the same loader call from step 01. It has to h
 ### The ApplicationInfo
 
 ```odin
-appInfo: vk.ApplicationInfo
-appInfo.sType = vk.StructureType.APPLICATION_INFO
-appInfo.pApplicationName = "Instance creation"
-appInfo.applicationVersion = vk.MAKE_VERSION(1, 0, 0)
-appInfo.pEngineName = "No Engine"
-appInfo.engineVersion = vk.MAKE_VERSION(1, 0, 0)
-appInfo.apiVersion = vk.API_VERSION_1_4
+app_info := vk.ApplicationInfo {
+    sType = vk.StructureType.APPLICATION_INFO,
+    pApplicationName = "Instance creation",
+    applicationVersion = vk.MAKE_VERSION(1, 0, 0),
+    pEngineName = "No Engine",
+    engineVersion = vk.MAKE_VERSION(1, 0, 0),
+    apiVersion = vk.API_VERSION_1_4,
+}
 ```
 
 This is metadata we hand to the driver — app name, version, engine name, and the Vulkan API version we target. Vulkan is technically allowed to ignore all of it, but drivers can use it for hints, and tools like RenderDoc read it to label traces.
@@ -72,33 +73,32 @@ This is metadata we hand to the driver — app name, version, engine name, and t
 Two things to notice:
 
 - The `sType` field is back. Every Vulkan struct you fill in starts with one. It tells the loader "this is an `ApplicationInfo`, not some other struct you might receive through the same pointer". Get used to it, you'll be typing this pattern a lot.
-- `appInfo.apiVersion = vk.API_VERSION_1_4`. The smoke test asked for `1.0`; we now ask for `1.4`. This is the highest version our local loader can give us, and we want to keep up so we can use features like synchronization2 or dynamic rendering later without bumping it retroactively. The Khronos tutorial uses `vk::ApiVersion14` for the same reason — see the "Instance" chapter referenced above.
+- `apiVersion = vk.API_VERSION_1_4`. The smoke test asked for `1.0`; we now ask for `1.4`. This is the highest version our local loader can give us, and we want to keep up so we can use features like synchronization2 or dynamic rendering later without bumping it retroactively. The Khronos tutorial uses `vk::ApiVersion14` for the same reason — see the "Instance" chapter referenced above.
 
-In C you'd also have to zero the struct before filling it. Odin zeroes for you — anything you don't assign on a freshly declared `appInfo: vk.ApplicationInfo` starts at zero. That's one less footgun.
+In C you'd also have to zero the struct before filling it. Odin zeroes for you — anything not listed in a struct literal starts at zero. That's one less footgun.
 
 
 ### The InstanceCreateInfo — and the new bit
 
 ```odin
-createInfo: vk.InstanceCreateInfo
-createInfo.sType = vk.StructureType.INSTANCE_CREATE_INFO
-createInfo.pApplicationInfo = &appInfo
-
 extensions := glfw.GetRequiredInstanceExtensions()
-createInfo.enabledExtensionCount = u32(len(extensions))
-createInfo.ppEnabledExtensionNames = raw_data(extensions)
-
-createInfo.enabledLayerCount = 0
+create_info := vk.InstanceCreateInfo {
+    sType = vk.StructureType.INSTANCE_CREATE_INFO,
+    pApplicationInfo = &app_info,
+    enabledExtensionCount = u32(len(extensions)),
+    ppEnabledExtensionNames = raw_data(extensions),
+    enabledLayerCount = 0,
+}
 ```
 
-The `InstanceCreateInfo` is what we actually hand to Vulkan. `pApplicationInfo` takes a *pointer* to the struct we just filled (`&appInfo`), because Odin passes by value by default and Vulkan wants addresses.
+The `InstanceCreateInfo` is what we actually hand to Vulkan. `pApplicationInfo` takes a *pointer* to the struct we just filled (`&app_info`), because Odin passes by value by default and Vulkan wants addresses.
 
 The interesting part, and the new thing this step introduces, is the extensions block:
 
 ```odin
 extensions := glfw.GetRequiredInstanceExtensions()
-createInfo.enabledExtensionCount = u32(len(extensions))
-createInfo.ppEnabledExtensionNames = raw_data(extensions)
+create_info.enabledExtensionCount = u32(len(extensions))
+create_info.ppEnabledExtensionNames = raw_data(extensions)
 ```
 
 Vulkan doesn't know about your window system. It's platform-agnostic by design, which means anything related to actually putting pixels on a window — `VK_KHR_surface` on Linux/X11, `VK_KHR_win32_surface` on Windows, `VK_KHR_wayland_surface` on Wayland, etc. — is bolted on through **extensions**. GLFW knows which of those it needs for the current platform, and `glfw.GetRequiredInstanceExtensions()` returns the list.
@@ -118,9 +118,8 @@ A subtle point: in the smoke test we left extensions empty too. That worked beca
 ### Actually creating it
 
 ```odin
-result: vk.Result
 instance: vk.Instance
-result = vk.CreateInstance(&createInfo, nil, &instance)
+result := vk.CreateInstance(&create_info, nil, &instance)
 if result != vk.Result.SUCCESS {
     fmt.eprintln("failed to create instance!")
     return nil, false
@@ -153,15 +152,13 @@ main :: proc() {
     fmt.println("Instance creation")
     fmt.println("-------------------------------------------")
 
-    if (!glfw.Init()) {
+    if !glfw.Init() {
         fmt.eprintln("Failed to initialize GLFW")
         os.exit(1)
     }
 
-    instance: vk.Instance
-    result: bool
-    instance, result = createInstance()
-    if (!result) {
+    instance, ok := create_instance()
+    if !ok {
         fmt.eprintln("Create instance failed.")
         os.exit(1)
     }
@@ -179,8 +176,8 @@ main :: proc() {
 `main` is mostly orchestration:
 
 - `glfw.Init()` first. Same as the smoke test — if GLFW can't come up, there's no point.
-- Then the multiple-value return from `createInstance` gets unpacked into `instance` and `result` in one go. Odin lets you do `a, b = proc()` directly, which is cleaner than the C++ alternative of catching an exception or unwrapping a `Result`.
-- If `result` is false, we print and `os.exit(1)`. This is where we decide the failure is fatal — the procedure just reported it.
+- Then the multiple-value return from `create_instance` gets unpacked into `instance` and `ok` in one go. Odin lets you do `a, b := proc()` directly, which is cleaner than the C++ alternative of catching an exception or unwrapping a `Result`.
+- If `ok` is false, we print and `os.exit(1)`. This is where we decide the failure is fatal — the procedure just reported it.
 - The interesting new bit at the bottom:
 
 ```odin
@@ -191,7 +188,7 @@ if instance != nil {
 
 Vulkan does not garbage-collect anything. Every object you create, you destroy, *in the right order*, when you're done. `vk.DestroyInstance` is the cleanup call matching `vk.CreateInstance`. The second argument is an optional allocator callback; we pass `nil` for the default, same as we did for create.
 
-The `nil`-check is belt-and-braces: if `createInstance` returned `false`, we already exited, so we'd never reach this line with a nil instance. But the instinct to keep resource cleanup behind a null check is a good one to internalise in Vulkan, where you'll soon be destroying dozens of objects in a specific order at shutdown. A null check is cheap, a segfault on cleanup is not.
+The `nil`-check is belt-and-braces: if `create_instance` returned `false`, we already exited, so we'd never reach this line with a nil instance. But the instinct to keep resource cleanup behind a null check is a good one to internalise in Vulkan, where you'll soon be destroying dozens of objects in a specific order at shutdown. A null check is cheap, a segfault on cleanup is not.
 
 One thing worth flagging: Vulkan's creation and destruction calls don't pair symmetrically the way `malloc`/`free` do. The order you destroy things in matters — children before parents. Right now we only have one object, so the order is trivial. But once we have a `Device` allocated from a `PhysicalDevice` and a `Surface` hanging off the `Instance`, you destroy in reverse: device first, then surface, then instance. We'll come back to this in later steps.
 
@@ -201,7 +198,7 @@ One thing worth flagging: Vulkan's creation and destruction calls don't pair sym
 From the `src/02_instance/` folder:
 
 ```
-odin build . -debug -vet -strict-style -out:bin/debug/02_instance
+odin build . -debug -vet -strict-style -vet-tabs -disallow-do -warnings-as-errors -out:bin/debug/02_instance
 ./bin/debug/02_instance
 ```
 

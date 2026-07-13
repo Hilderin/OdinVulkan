@@ -14,7 +14,7 @@ g_debug_messenger: vk.DebugUtilsMessengerEXT = {}
 g_debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
 
 // Required validation layers.
-g_validationLayers := []cstring{"VK_LAYER_KHRONOS_validation"}
+g_validation_layers := []cstring{"VK_LAYER_KHRONOS_validation"}
 
 
 debug_callback :: proc "system" (
@@ -38,54 +38,52 @@ debug_callback :: proc "system" (
 }
 
 
-createInstance :: proc() -> (vk.Instance, bool) {
+create_instance :: proc() -> (vk.Instance, bool) {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
-	if !areLayersSupported(g_validationLayers) {
+	if !are_layers_supported(g_validation_layers) {
 		fmt.eprintln(
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
 		return nil, false
 	}
 
-	appInfo: vk.ApplicationInfo
-	appInfo.sType = vk.StructureType.APPLICATION_INFO
-	appInfo.pApplicationName = "Vulkan initialization"
-	appInfo.applicationVersion = vk.MAKE_VERSION(1, 0, 0)
-	appInfo.pEngineName = "No Engine"
-	appInfo.engineVersion = vk.MAKE_VERSION(1, 0, 0)
-	appInfo.apiVersion = vk.API_VERSION_1_4
-
-
-	createInfo: vk.InstanceCreateInfo
-	createInfo.sType = vk.StructureType.INSTANCE_CREATE_INFO
-	createInfo.pApplicationInfo = &appInfo
+	app_info := vk.ApplicationInfo {
+		sType = vk.StructureType.APPLICATION_INFO,
+		pApplicationName = "Vulkan initialization",
+		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
+		pEngineName = "No Engine",
+		engineVersion = vk.MAKE_VERSION(1, 0, 0),
+		apiVersion = vk.API_VERSION_1_4,
+	}
 
 	extensions := glfw.GetRequiredInstanceExtensions()
-	extNames: [dynamic]cstring
-	defer delete(extNames)
-	append(&extNames, ..extensions)
-	append(&extNames, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
-
-	createInfo.enabledExtensionCount = u32(len(extNames))
-	createInfo.ppEnabledExtensionNames = raw_data(extNames[:])
-
-	createInfo.enabledLayerCount = u32(len(g_validationLayers))
-	createInfo.ppEnabledLayerNames = raw_data(g_validationLayers)
+	ext_names: [dynamic]cstring
+	defer delete(ext_names)
+	append(&ext_names, ..extensions)
+	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
 
 	// Debug messenger create info — chained in pNext to intercept
 	// messages DURING instance creation.
-	debugCreateInfo: vk.DebugUtilsMessengerCreateInfoEXT
-	debugCreateInfo.sType = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
-	debugCreateInfo.messageSeverity = g_debug_level
-	debugCreateInfo.messageType = {.GENERAL, .VALIDATION, .PERFORMANCE}
-	debugCreateInfo.pfnUserCallback = debug_callback
-	debugCreateInfo.pUserData = nil
+	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
+		sType = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		messageSeverity = g_debug_level,
+		messageType = {.GENERAL, .VALIDATION, .PERFORMANCE},
+		pfnUserCallback = debug_callback,
+		pUserData = nil,
+	}
 
-	createInfo.pNext = &debugCreateInfo
+	create_info := vk.InstanceCreateInfo {
+		sType = vk.StructureType.INSTANCE_CREATE_INFO,
+		pApplicationInfo = &app_info,
+		enabledExtensionCount = u32(len(ext_names)),
+		ppEnabledExtensionNames = raw_data(ext_names[:]),
+		enabledLayerCount = u32(len(g_validation_layers)),
+		ppEnabledLayerNames = raw_data(g_validation_layers),
+		pNext = &debug_create_info,
+	}
 
-	result: vk.Result
 	instance: vk.Instance
-	result = vk.CreateInstance(&createInfo, nil, &instance)
+	result := vk.CreateInstance(&create_info, nil, &instance)
 	if result != vk.Result.SUCCESS {
 		fmt.eprintln("failed to create instance!")
 		return nil, false
@@ -94,7 +92,7 @@ createInstance :: proc() -> (vk.Instance, bool) {
 
 	// Once the instance is created, install the persistent messenger.
 	if vk.CreateDebugUtilsMessengerEXT != nil {
-		if vk.CreateDebugUtilsMessengerEXT(instance, &debugCreateInfo, nil, &g_debug_messenger) != vk.Result.SUCCESS {
+		if vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger) != vk.Result.SUCCESS {
 			fmt.eprintln("failed to create debug messenger!")
 			return nil, false
 		}
@@ -104,17 +102,17 @@ createInstance :: proc() -> (vk.Instance, bool) {
 }
 
 
-areLayersSupported :: proc(requiredLayers: []cstring) -> b32 {
-	layerCount: u32
-	vk.EnumerateInstanceLayerProperties(&layerCount, nil)
-	availableLayers := make([]vk.LayerProperties, layerCount)
-	defer delete(availableLayers)
-	vk.EnumerateInstanceLayerProperties(&layerCount, raw_data(availableLayers))
+are_layers_supported :: proc(required_layers: []cstring) -> b32 {
+	layer_count: u32
+	vk.EnumerateInstanceLayerProperties(&layer_count, nil)
+	available_layers := make([]vk.LayerProperties, layer_count)
+	defer delete(available_layers)
+	vk.EnumerateInstanceLayerProperties(&layer_count, raw_data(available_layers))
 
-	for reqLayer in requiredLayers {
+	for req_layer in required_layers {
 		found := false
-		for i in 0 ..< len(availableLayers) {
-			if cstring(&availableLayers[i].layerName[0]) == reqLayer {
+		for &layer in available_layers {
+			if cstring(&layer.layerName[0]) == req_layer {
 				found = true
 				break
 			}
@@ -132,17 +130,14 @@ main :: proc() {
 	fmt.println("-------------------------------------------")
 
 	// We need to initialize GLFW so the glfw.GetInstanceProcAddress() method returns a valid callback to load Vulkan function addresses.
-	if (!glfw.Init()) {
+	if !glfw.Init() {
 		fmt.eprintln("Failed to initialize GLFW")
 		os.exit(1)
 	}
 
-
 	// Create Vulkan instance...
-	instance: vk.Instance
-	result: bool
-	instance, result = createInstance()
-	if (!result) {
+	instance, ok := create_instance()
+	if !ok {
 		fmt.eprintln("Create instance failed.")
 		os.exit(1)
 	}

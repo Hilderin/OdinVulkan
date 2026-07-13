@@ -11,7 +11,7 @@ main :: proc() {
 	fmt.println("--------------------------")
 
 	// Test GLFW...
-	if (!glfw.Init()) {
+	if !glfw.Init() {
 		fmt.eprintln("Failed to initialize GLFW")
 		os.exit(1)
 	}
@@ -21,22 +21,23 @@ main :: proc() {
 	// Test Vulkan SDK...
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 
-	appInfo: vk.ApplicationInfo
-	appInfo.sType = vk.StructureType.APPLICATION_INFO
-	appInfo.pApplicationName = "Test setup"
-	appInfo.applicationVersion = vk.MAKE_VERSION(1, 0, 0)
-	appInfo.pEngineName = "No Engine"
-	appInfo.engineVersion = vk.MAKE_VERSION(1, 0, 0)
-	appInfo.apiVersion = vk.API_VERSION_1_0
+	app_info := vk.ApplicationInfo {
+		sType = vk.StructureType.APPLICATION_INFO,
+		pApplicationName = "Test setup",
+		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
+		pEngineName = "No Engine",
+		engineVersion = vk.MAKE_VERSION(1, 0, 0),
+		apiVersion = vk.API_VERSION_1_0,
+	}
 
-	createInfo: vk.InstanceCreateInfo
-	createInfo.sType = vk.StructureType.INSTANCE_CREATE_INFO
-	createInfo.pApplicationInfo = &appInfo
-	createInfo.enabledLayerCount = 0
-	result: vk.Result
+	create_info := vk.InstanceCreateInfo {
+		sType = vk.StructureType.INSTANCE_CREATE_INFO,
+		pApplicationInfo = &app_info,
+		enabledLayerCount = 0,
+	}
 
 	instance: vk.Instance
-	result = vk.CreateInstance(&createInfo, nil, &instance)
+	result := vk.CreateInstance(&create_info, nil, &instance)
 	if result != vk.Result.SUCCESS {
 		fmt.eprintln("Failed to create Vulkan instance. Check if your hardware supports Vulkan and your Graphics Card drvier installation.")
 		os.exit(1)
@@ -45,7 +46,7 @@ main :: proc() {
 	fmt.println("Vulkan... OK!")
 
 	// Vulkan SDK...
-	if !check_ValidationLayerSupport() {
+	if !check_validation_layer_support() {
 		fmt.eprintln(
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
@@ -58,16 +59,15 @@ main :: proc() {
 }
 
 
-check_ValidationLayerSupport :: proc() -> b32 {
+check_validation_layer_support :: proc() -> b32 {
+	layer_count: u32
+	vk.EnumerateInstanceLayerProperties(&layer_count, nil)
+	available_layers := make([]vk.LayerProperties, layer_count)
+	defer delete(available_layers)
+	vk.EnumerateInstanceLayerProperties(&layer_count, raw_data(available_layers))
 
-	layerCount: u32
-	vk.EnumerateInstanceLayerProperties(&layerCount, nil)
-	availableLayers := make([]vk.LayerProperties, layerCount)
-	defer delete(availableLayers)
-	vk.EnumerateInstanceLayerProperties(&layerCount, raw_data(availableLayers))
-
-	for i in 0 ..< len(availableLayers) {
-		if cstring(&availableLayers[i].layerName[0]) == "VK_LAYER_KHRONOS_validation" {
+	for &layer in available_layers {
+		if cstring(&layer.layerName[0]) == "VK_LAYER_KHRONOS_validation" {
 			return true
 		}
 	}

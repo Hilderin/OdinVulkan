@@ -36,12 +36,22 @@ DON'T:
 - Don't over-explain trivial things, but don't skip the non-obvious ones either.
 
 
+# Code standards
+All code must follow the conventions documented in `docs/code_standards.md` (naming, style, compiler flags, Vulkan-specific notes). Read it before writing or editing any Odin code.
+
+
 # Build command
 Always build in "bin/debug" folder.
-Always build with -strict-style.
-Always build with -vet to check unused variables.
+Always build with the full set of vet/style flags. The project must compile cleanly with:
+- `-vet` — unused variables and common mistakes.
+- `-strict-style` — enforces style rules.
+- `-vet-tabs` — tabs for indentation, no mixing.
+- `-disallow-do` — no `do` blocks.
+- `-warnings-as-errors` — warnings don't get to hide.
 
-exemple:
+The conventions are documented in `docs/code_standards.md`.
+
+Example:
 ```
-odin build . -debug -vet -strict-style -out:bin/debug/03_vulkan_initialization
+odin build . -debug -vet -strict-style -vet-tabs -disallow-do -warnings-as-errors -out:bin/debug/03_validation_layers
 ```

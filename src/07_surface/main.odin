@@ -54,12 +54,12 @@ create_instance :: proc() -> (vk.Instance, bool) {
 	}
 
 	app_info := vk.ApplicationInfo {
-		sType = vk.StructureType.APPLICATION_INFO,
-		pApplicationName = "Vulkan initialization",
+		sType              = vk.StructureType.APPLICATION_INFO,
+		pApplicationName   = "Vulkan initialization",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
-		pEngineName = "No Engine",
-		engineVersion = vk.MAKE_VERSION(1, 0, 0),
-		apiVersion = vk.API_VERSION_1_4,
+		pEngineName        = "No Engine",
+		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
+		apiVersion         = vk.API_VERSION_1_4,
 	}
 
 	extensions := glfw.GetRequiredInstanceExtensions()
@@ -69,21 +69,21 @@ create_instance :: proc() -> (vk.Instance, bool) {
 	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
 
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
-		sType = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		sType           = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 		messageSeverity = g_debug_level,
-		messageType = {.GENERAL, .VALIDATION, .PERFORMANCE},
+		messageType     = {.GENERAL, .VALIDATION, .PERFORMANCE},
 		pfnUserCallback = debug_callback,
-		pUserData = nil,
+		pUserData       = nil,
 	}
 
 	create_info := vk.InstanceCreateInfo {
-		sType = vk.StructureType.INSTANCE_CREATE_INFO,
-		pApplicationInfo = &app_info,
-		enabledExtensionCount = u32(len(ext_names)),
+		sType                   = vk.StructureType.INSTANCE_CREATE_INFO,
+		pApplicationInfo        = &app_info,
+		enabledExtensionCount   = u32(len(ext_names)),
 		ppEnabledExtensionNames = raw_data(ext_names[:]),
-		enabledLayerCount = u32(len(g_validation_layers)),
-		ppEnabledLayerNames = raw_data(g_validation_layers),
-		pNext = &debug_create_info,
+		enabledLayerCount       = u32(len(g_validation_layers)),
+		ppEnabledLayerNames     = raw_data(g_validation_layers),
+		pNext                   = &debug_create_info,
 	}
 
 	instance: vk.Instance
@@ -312,27 +312,27 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 
 	queue_priority: f32 = 0.5
 	queue_create_info := vk.DeviceQueueCreateInfo {
-		sType = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
+		sType            = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
 		queueFamilyIndex = queue_index,
-		queueCount = 1,
+		queueCount       = 1,
 		pQueuePriorities = &queue_priority,
 	}
 
 	device_feature_extended_dynamic_state := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType = vk.StructureType.PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+		sType                = vk.StructureType.PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
 		extendedDynamicState = true,
 	}
 
 	device_feature_vulkan13 := vk.PhysicalDeviceVulkan13Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		sType            = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 		dynamicRendering = true,
-		pNext = &device_feature_extended_dynamic_state,
+		pNext            = &device_feature_extended_dynamic_state,
 	}
 
 	device_feature_vulkan11 := vk.PhysicalDeviceVulkan11Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		sType                = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 		shaderDrawParameters = true,
-		pNext = &device_feature_vulkan13,
+		pNext                = &device_feature_vulkan13,
 	}
 
 	device_feature_2 := vk.PhysicalDeviceFeatures2 {
@@ -341,12 +341,12 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 	}
 
 	create_info := vk.DeviceCreateInfo {
-		sType = vk.StructureType.DEVICE_CREATE_INFO,
-		pQueueCreateInfos = &queue_create_info,
-		queueCreateInfoCount = 1,
-		enabledExtensionCount = u32(len(g_required_extensions)),
+		sType                   = vk.StructureType.DEVICE_CREATE_INFO,
+		pQueueCreateInfos       = &queue_create_info,
+		queueCreateInfoCount    = 1,
+		enabledExtensionCount   = u32(len(g_required_extensions)),
 		ppEnabledExtensionNames = raw_data(g_required_extensions),
-		pNext = &device_feature_2,
+		pNext                   = &device_feature_2,
 	}
 
 	device: vk.Device

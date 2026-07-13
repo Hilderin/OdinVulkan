@@ -48,12 +48,12 @@ create_instance :: proc() -> (vk.Instance, bool) {
 	}
 
 	app_info := vk.ApplicationInfo {
-		sType = vk.StructureType.APPLICATION_INFO,
-		pApplicationName = "Vulkan initialization",
+		sType              = vk.StructureType.APPLICATION_INFO,
+		pApplicationName   = "Vulkan initialization",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
-		pEngineName = "No Engine",
-		engineVersion = vk.MAKE_VERSION(1, 0, 0),
-		apiVersion = vk.API_VERSION_1_4,
+		pEngineName        = "No Engine",
+		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
+		apiVersion         = vk.API_VERSION_1_4,
 	}
 
 	extensions := glfw.GetRequiredInstanceExtensions()
@@ -63,21 +63,21 @@ create_instance :: proc() -> (vk.Instance, bool) {
 	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
 
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
-		sType = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		sType           = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 		messageSeverity = g_debug_level,
-		messageType = {.GENERAL, .VALIDATION, .PERFORMANCE},
+		messageType     = {.GENERAL, .VALIDATION, .PERFORMANCE},
 		pfnUserCallback = debug_callback,
-		pUserData = nil,
+		pUserData       = nil,
 	}
 
 	create_info := vk.InstanceCreateInfo {
-		sType = vk.StructureType.INSTANCE_CREATE_INFO,
-		pApplicationInfo = &app_info,
-		enabledExtensionCount = u32(len(ext_names)),
+		sType                   = vk.StructureType.INSTANCE_CREATE_INFO,
+		pApplicationInfo        = &app_info,
+		enabledExtensionCount   = u32(len(ext_names)),
 		ppEnabledExtensionNames = raw_data(ext_names[:]),
-		enabledLayerCount = u32(len(g_validation_layers)),
-		ppEnabledLayerNames = raw_data(g_validation_layers),
-		pNext = &debug_create_info,
+		enabledLayerCount       = u32(len(g_validation_layers)),
+		ppEnabledLayerNames     = raw_data(g_validation_layers),
+		pNext                   = &debug_create_info,
 	}
 
 	instance: vk.Instance

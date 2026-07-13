@@ -13,6 +13,9 @@ g_debug_messenger: vk.DebugUtilsMessengerEXT = {}
 // Debug level — controls which severities are enabled and printed.
 g_debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
 
+// Required validation layers.
+g_validationLayers := []cstring{"VK_LAYER_KHRONOS_validation"}
+
 
 debug_callback :: proc "system" (
 	messageSeverity: vk.DebugUtilsMessageSeverityFlagsEXT,
@@ -20,7 +23,7 @@ debug_callback :: proc "system" (
 	pCallbackData: ^vk.DebugUtilsMessengerCallbackDataEXT,
 	pUserData: rawptr,
 ) -> b32 {
-	// "system" callbacks are called from C without an Odin context, we need to specift the default context to compile.
+	// "system" callbacks are called from C without an Odin context, we need to specify the default context to compile.
 	context = runtime.default_context()
 	if .ERROR in messageSeverity && .ERROR in g_debug_level {
 		fmt.eprintfln("[validation ERROR] %s", pCallbackData.pMessage)
@@ -37,9 +40,9 @@ debug_callback :: proc "system" (
 
 createInstance :: proc() -> (vk.Instance, bool) {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
-	if !check_ValidationLayerSupport() {
+	if !areLayersSupported(g_validationLayers) {
 		fmt.eprintln(
-			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SFK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
+			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
 		return nil, false
 	}
@@ -66,7 +69,8 @@ createInstance :: proc() -> (vk.Instance, bool) {
 	createInfo.enabledExtensionCount = u32(len(extNames))
 	createInfo.ppEnabledExtensionNames = raw_data(extNames[:])
 
-	//createInfo.enabledLayerCount = 0
+	createInfo.enabledLayerCount = u32(len(g_validationLayers))
+	createInfo.ppEnabledLayerNames = raw_data(g_validationLayers)
 
 	// Debug messenger create info — chained in pNext to intercept
 	// messages DURING instance creation.
@@ -100,19 +104,26 @@ createInstance :: proc() -> (vk.Instance, bool) {
 }
 
 
-check_ValidationLayerSupport :: proc() -> b32 {
+areLayersSupported :: proc(requiredLayers: []cstring) -> b32 {
 	layerCount: u32
 	vk.EnumerateInstanceLayerProperties(&layerCount, nil)
 	availableLayers := make([]vk.LayerProperties, layerCount)
 	defer delete(availableLayers)
 	vk.EnumerateInstanceLayerProperties(&layerCount, raw_data(availableLayers))
 
-	for i in 0 ..< len(availableLayers) {
-		if cstring(&availableLayers[i].layerName[0]) == "VK_LAYER_KHRONOS_validation" {
-			return true
+	for reqLayer in requiredLayers {
+		found := false
+		for i in 0 ..< len(availableLayers) {
+			if cstring(&availableLayers[i].layerName[0]) == reqLayer {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.QueueFlags) -> (u32, bool) {
@@ -120,15 +131,14 @@ findQueueFamilies :: proc(physicalDevice: vk.PhysicalDevice, queueFlags: vk.Queu
 	vk.GetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nil)
 
 	queueFamilies := make([]vk.QueueFamilyProperties, queueFamilyCount)
+	defer delete(queueFamilies)
 	queueFamiliesRaw := raw_data(queueFamilies)
 	vk.GetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamiliesRaw)
 
-	i: u32 = 0
-	for queueFamily in queueFamilies {
+	for queueFamily, i in queueFamilies {
 		if (queueFlags & queueFamily.queueFlags) == queueFlags {
-			return i, true
+			return u32(i), true
 		}
-		i += 1
 	}
 	return 0, false
 }
@@ -197,14 +207,13 @@ scoreDevice :: proc(device: vk.PhysicalDevice) -> int {
 		for reqExt in requiredExtensions {
 			found := false
 			for i in 0 ..< len(availableExts) {
-				extName := string(cstring(&availableExts[i].extensionName[0]))
-				if extName == string(reqExt) {
+				if cstring(&availableExts[i].extensionName[0]) == reqExt {
 					found = true
 					break
 				}
 			}
 			if !found {
-				fmt.printfln("  %q — missing required extension %s (skipped)", name, string(reqExt))
+				fmt.printfln("  %q — missing required extension %s (skipped)", name, reqExt)
 				return -1
 			}
 		}

@@ -13,6 +13,9 @@ g_debug_messenger: vk.DebugUtilsMessengerEXT = {}
 // Debug level — controls which severities are enabled and printed.
 g_debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
 
+// Required validation layers.
+g_validationLayers := []cstring{"VK_LAYER_KHRONOS_validation"}
+
 
 debug_callback :: proc "system" (
 	messageSeverity: vk.DebugUtilsMessageSeverityFlagsEXT,
@@ -20,7 +23,7 @@ debug_callback :: proc "system" (
 	pCallbackData: ^vk.DebugUtilsMessengerCallbackDataEXT,
 	pUserData: rawptr,
 ) -> b32 {
-	// "system" callbacks are called from C without an Odin context, we need to specift the default context to compile.
+	// "system" callbacks are called from C without an Odin context, we need to specify the default context to compile.
 	context = runtime.default_context()
 	if .ERROR in messageSeverity && .ERROR in g_debug_level {
 		fmt.eprintfln("[validation ERROR] %s", pCallbackData.pMessage)
@@ -37,9 +40,9 @@ debug_callback :: proc "system" (
 
 createInstance :: proc() -> (vk.Instance, bool) {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
-	if !check_ValidationLayerSupport() {
+	if !areLayersSupported(g_validationLayers) {
 		fmt.eprintln(
-			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SFK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
+			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
 		return nil, false
 	}
@@ -66,7 +69,8 @@ createInstance :: proc() -> (vk.Instance, bool) {
 	createInfo.enabledExtensionCount = u32(len(extNames))
 	createInfo.ppEnabledExtensionNames = raw_data(extNames[:])
 
-	//createInfo.enabledLayerCount = 0
+	createInfo.enabledLayerCount = u32(len(g_validationLayers))
+	createInfo.ppEnabledLayerNames = raw_data(g_validationLayers)
 
 	// Debug messenger create info — chained in pNext to intercept
 	// messages DURING instance creation.
@@ -100,20 +104,26 @@ createInstance :: proc() -> (vk.Instance, bool) {
 }
 
 
-check_ValidationLayerSupport :: proc() -> b32 {
-
+areLayersSupported :: proc(requiredLayers: []cstring) -> b32 {
 	layerCount: u32
 	vk.EnumerateInstanceLayerProperties(&layerCount, nil)
 	availableLayers := make([]vk.LayerProperties, layerCount)
 	defer delete(availableLayers)
 	vk.EnumerateInstanceLayerProperties(&layerCount, raw_data(availableLayers))
 
-	for i in 0 ..< len(availableLayers) {
-		if cstring(&availableLayers[i].layerName[0]) == "VK_LAYER_KHRONOS_validation" {
-			return true
+	for reqLayer in requiredLayers {
+		found := false
+		for i in 0 ..< len(availableLayers) {
+			if cstring(&availableLayers[i].layerName[0]) == reqLayer {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 

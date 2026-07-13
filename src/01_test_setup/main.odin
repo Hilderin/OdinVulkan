@@ -47,7 +47,7 @@ main :: proc() {
 	// Vulkan SDK...
 	if !check_ValidationLayerSupport() {
 		fmt.eprintln(
-			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SFK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
+			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
 	}
 	fmt.println("Vulkan SDK... OK!")

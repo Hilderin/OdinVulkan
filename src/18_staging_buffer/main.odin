@@ -1338,6 +1338,46 @@ mem_copy_to_buffer :: proc(device: vk.Device, buffer_memory: vk.DeviceMemory, da
 	return true
 }
 
+transfer_to_buffer :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, data: []$T, dest_buffer: vk.Buffer) -> bool {
+
+	size := size_of(T) * len(data)
+	ok: bool
+
+	// Staging buffer creation
+	staging_buffer: vk.Buffer
+	ok = create_buffer(device, size, {.TRANSFER_SRC})
+	if !ok {
+		fmt.eprintfln("Failed to create staging buffer.")
+		return false
+	}
+	defer vk.DestroyBuffer(staging_buffer)
+
+	staging_buffer_memory: vk.DeviceMemory
+	staging_buffer_memory, ok = allocate_buffer_memory(physical_device, device, staging_buffer, {.HOST_VISIBLE, .HOST_COHERENT})
+	if !ok {
+		fmt.eprintfln("Failed to allocate memory for staging buffer.")
+		return false
+	}
+	defer vk.FreeMemory(staging_buffer_memory)
+
+	// Copy data to staging buffer...
+	ok := mem_copy_to_buffer(device, staging_buffer_memory, data)
+	if !ok {
+		fmt.eprintfln("Failed to copy data to staging buffer.")
+		return false
+	}
+
+
+	command_pool: vk.CommandPool
+	command_pool, ok := create_command_pool(device, physical_device)
+	if !ok {
+		fmt.eprintfln("Failed to create command pool.")
+		return false
+	}
+
+
+}
+
 main :: proc() {
 	fmt.println("Vulkan initialization")
 	fmt.println("-------------------------------------------")

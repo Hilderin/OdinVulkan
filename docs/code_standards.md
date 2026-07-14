@@ -138,3 +138,4 @@ A few things that come up often in this codebase and aren't covered by the gener
 - `cstring == cstring` compares by content in Odin. Don't convert to `string` just to compare extension or layer names — that allocates for nothing. Compare the `cstring`s directly.
 - `for value, index in` — the index comes second. It's the opposite of what people coming from Rust or Go expect.
 - Anything returned by `make` needs a matching `delete`. If a proc returns a slice it allocated, the caller is responsible for freeing it; use `defer delete(...)` at the call site.
+- Always use `vk_check` to verify result of a Vulkan method except when the result could be more specific like VK_SUBOPTIMAL_KHR or VK_ERROR_OUT_OF_DATE_KHR

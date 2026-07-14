@@ -1199,11 +1199,11 @@ find_memory_type :: proc(physical_device: vk.PhysicalDevice, type_filter: u32, p
 mem_copy_to_buffer :: proc(device: vk.Device, buffer_memory: vk.DeviceMemory, data: []$T) {
 
 	size := size_of(T) * len(data)
-	dest_data: [^]u8
+	dest_data: rawptr
 
-	vk_check(vk.MapMemory(device, buffer_memory, 0, vk.DeviceSize(size), {}, cast(^rawptr)&dest_data), "Failed to map memory!")
+	vk_check(vk.MapMemory(device, buffer_memory, 0, vk.DeviceSize(size), {}, &dest_data), "Failed to map memory!")
 
-	mem.copy(dest_data[0:], raw_data(data), size)
+	mem.copy(dest_data, raw_data(data), size)
 
 	vk.UnmapMemory(device, buffer_memory)
 

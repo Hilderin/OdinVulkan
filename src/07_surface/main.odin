@@ -9,19 +9,19 @@ import "vendor:glfw"
 import vk "vendor:vulkan"
 
 // Globals needed for debug messenger cleanup.
-g_debug_messenger: vk.DebugUtilsMessengerEXT = {}
+debug_messenger: vk.DebugUtilsMessengerEXT = {}
 
 // Debug level — controls which severities are enabled and printed.
-g_debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
+debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
 
 // Required validation layers.
-g_validation_layers := []cstring{"VK_LAYER_KHRONOS_validation"}
+validation_layers := []cstring{"VK_LAYER_KHRONOS_validation"}
 
 // Required extensions
-g_required_extensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
+required_extensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 
 // Manage the escape key exit.
-g_running: bool = true
+running: bool = true
 
 
 vk_check :: proc(result: vk.Result, operation: string, loc := #caller_location) {
@@ -45,13 +45,13 @@ debug_callback :: proc "system" (
 ) -> b32 {
 	// "system" callbacks are called from C without an Odin context, we need to specify the default context to compile.
 	context = runtime.default_context()
-	if .ERROR in messageSeverity && .ERROR in g_debug_level {
+	if .ERROR in messageSeverity && .ERROR in debug_level {
 		fmt.eprintfln("[validation ERROR] %s", pCallbackData.pMessage)
-	} else if .WARNING in messageSeverity && .WARNING in g_debug_level {
+	} else if .WARNING in messageSeverity && .WARNING in debug_level {
 		fmt.eprintfln("[validation WARNING] %s", pCallbackData.pMessage)
-	} else if .INFO in messageSeverity && .INFO in g_debug_level {
+	} else if .INFO in messageSeverity && .INFO in debug_level {
 		fmt.println("[validation INFO]", pCallbackData.pMessage)
-	} else if .VERBOSE in messageSeverity && .VERBOSE in g_debug_level {
+	} else if .VERBOSE in messageSeverity && .VERBOSE in debug_level {
 		fmt.printfln("[validation VERBOSE] %s", pCallbackData.pMessage)
 	}
 	return false
@@ -60,7 +60,7 @@ debug_callback :: proc "system" (
 
 create_instance :: proc() -> vk.Instance {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
-	if !are_layers_supported(g_validation_layers) {
+	if !are_layers_supported(validation_layers) {
 		fmt.eprintln(
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
@@ -84,7 +84,7 @@ create_instance :: proc() -> vk.Instance {
 
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
 		sType           = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-		messageSeverity = g_debug_level,
+		messageSeverity = debug_level,
 		messageType     = {.GENERAL, .VALIDATION, .PERFORMANCE},
 		pfnUserCallback = debug_callback,
 		pUserData       = nil,
@@ -95,8 +95,8 @@ create_instance :: proc() -> vk.Instance {
 		pApplicationInfo        = &app_info,
 		enabledExtensionCount   = u32(len(ext_names)),
 		ppEnabledExtensionNames = raw_data(ext_names[:]),
-		enabledLayerCount       = u32(len(g_validation_layers)),
-		ppEnabledLayerNames     = raw_data(g_validation_layers),
+		enabledLayerCount       = u32(len(validation_layers)),
+		ppEnabledLayerNames     = raw_data(validation_layers),
 		pNext                   = &debug_create_info,
 	}
 
@@ -105,7 +105,7 @@ create_instance :: proc() -> vk.Instance {
 	vk.load_proc_addresses_instance(instance)
 
 	if vk.CreateDebugUtilsMessengerEXT != nil {
-		vk_check(vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger), "failed to create debug messenger!")
+		vk_check(vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &debug_messenger), "failed to create debug messenger!")
 	}
 
 	return instance
@@ -227,7 +227,7 @@ score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 	defer delete(available_exts)
 	vk.EnumerateDeviceExtensionProperties(device, nil, &ext_count, raw_data(available_exts))
 
-	for req_ext in g_required_extensions {
+	for req_ext in required_extensions {
 		found := false
 		for &ext in available_exts {
 			if cstring(&ext.extensionName[0]) == req_ext {
@@ -351,8 +351,8 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 		sType                   = .DEVICE_CREATE_INFO,
 		pQueueCreateInfos       = &queue_create_info,
 		queueCreateInfoCount    = 1,
-		enabledExtensionCount   = u32(len(g_required_extensions)),
-		ppEnabledExtensionNames = raw_data(g_required_extensions),
+		enabledExtensionCount   = u32(len(required_extensions)),
+		ppEnabledExtensionNames = raw_data(required_extensions),
 		pNext                   = &device_feature_2,
 	}
 
@@ -426,11 +426,11 @@ main :: proc() {
 	// Event loop — keep the window open until the user closes it or hits Escape.
 	key_callback :: proc "c" (window: glfw.WindowHandle, key, scancode, action, mods: i32) {
 		if key == glfw.KEY_ESCAPE {
-			g_running = false
+			running = false
 		}
 	}
 	glfw.SetKeyCallback(window, key_callback)
-	for !glfw.WindowShouldClose(window) && g_running {
+	for !glfw.WindowShouldClose(window) && running {
 		glfw.PollEvents()
 	}
 	//---------------------
@@ -440,7 +440,7 @@ main :: proc() {
 		vk.DestroyDevice(device, nil)
 	}
 	if instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
-		vk.DestroyDebugUtilsMessengerEXT(instance, g_debug_messenger, nil)
+		vk.DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nil)
 	}
 	if surface != 0 {
 		vk.DestroySurfaceKHR(instance, surface, nil)

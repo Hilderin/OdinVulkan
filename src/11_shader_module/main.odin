@@ -69,7 +69,7 @@ create_instance :: proc() -> vk.Instance {
 	}
 
 	app_info := vk.ApplicationInfo {
-		sType              = vk.StructureType.APPLICATION_INFO,
+		sType              = .APPLICATION_INFO,
 		pApplicationName   = "Vulkan initialization",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
@@ -84,7 +84,7 @@ create_instance :: proc() -> vk.Instance {
 	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
 
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
-		sType           = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		sType           = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 		messageSeverity = g_debug_level,
 		messageType     = {.GENERAL, .VALIDATION, .PERFORMANCE},
 		pfnUserCallback = debug_callback,
@@ -92,7 +92,7 @@ create_instance :: proc() -> vk.Instance {
 	}
 
 	create_info := vk.InstanceCreateInfo {
-		sType                   = vk.StructureType.INSTANCE_CREATE_INFO,
+		sType                   = .INSTANCE_CREATE_INFO,
 		pApplicationInfo        = &app_info,
 		enabledExtensionCount   = u32(len(ext_names)),
 		ppEnabledExtensionNames = raw_data(ext_names[:]),
@@ -175,20 +175,20 @@ get_device_features :: proc(
 	vk.PhysicalDeviceFeatures,
 ) {
 	vulkan13_features := vk.PhysicalDeviceVulkan13Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		sType = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 	}
 	extended_dynamic_state_features := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType = vk.StructureType.PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+		sType = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
 	}
 	vulkan13_features.pNext = &extended_dynamic_state_features
 
 	vulkan11_features := vk.PhysicalDeviceVulkan11Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		sType = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 		pNext = &vulkan13_features,
 	}
 
 	features2 := vk.PhysicalDeviceFeatures2 {
-		sType = vk.StructureType.PHYSICAL_DEVICE_FEATURES_2,
+		sType = .PHYSICAL_DEVICE_FEATURES_2,
 		pNext = &vulkan11_features,
 	}
 
@@ -320,36 +320,36 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 
 	queue_priority: f32 = 0.5
 	queue_create_info := vk.DeviceQueueCreateInfo {
-		sType            = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
+		sType            = .DEVICE_QUEUE_CREATE_INFO,
 		queueFamilyIndex = queue_index,
 		queueCount       = 1,
 		pQueuePriorities = &queue_priority,
 	}
 
 	device_feature_extended_dynamic_state := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType                = vk.StructureType.PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+		sType                = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
 		extendedDynamicState = true,
 	}
 
 	device_feature_vulkan13 := vk.PhysicalDeviceVulkan13Features {
-		sType            = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		sType            = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 		dynamicRendering = true,
 		pNext            = &device_feature_extended_dynamic_state,
 	}
 
 	device_feature_vulkan11 := vk.PhysicalDeviceVulkan11Features {
-		sType                = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		sType                = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 		shaderDrawParameters = true,
 		pNext                = &device_feature_vulkan13,
 	}
 
 	device_feature_2 := vk.PhysicalDeviceFeatures2 {
-		sType = vk.StructureType.PHYSICAL_DEVICE_FEATURES_2,
+		sType = .PHYSICAL_DEVICE_FEATURES_2,
 		pNext = &device_feature_vulkan11,
 	}
 
 	create_info := vk.DeviceCreateInfo {
-		sType                   = vk.StructureType.DEVICE_CREATE_INFO,
+		sType                   = .DEVICE_CREATE_INFO,
 		pQueueCreateInfos       = &queue_create_info,
 		queueCreateInfoCount    = 1,
 		enabledExtensionCount   = u32(len(g_required_extensions)),
@@ -478,7 +478,7 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 	present_mode := choose_present_mode(available_present_modes)
 
 	create_info := vk.SwapchainCreateInfoKHR {
-		sType            = vk.StructureType.SWAPCHAIN_CREATE_INFO_KHR,
+		sType            = .SWAPCHAIN_CREATE_INFO_KHR,
 		surface          = surface,
 		minImageCount    = min_image_count,
 		imageFormat      = format.format,
@@ -503,7 +503,7 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> []vk.ImageView {
 
 	create_info := vk.ImageViewCreateInfo {
-		sType            = vk.StructureType.IMAGE_VIEW_CREATE_INFO,
+		sType            = .IMAGE_VIEW_CREATE_INFO,
 		viewType         = vk.ImageViewType.D2,
 		format           = swap_chain_format,
 		subresourceRange = {{.COLOR}, 0, 1, 0, 1},
@@ -544,7 +544,7 @@ create_shader_module :: proc(device: vk.Device, slang_path: string, entry_points
 	defer delete(spv)
 
 	create_info := vk.ShaderModuleCreateInfo {
-		sType    = vk.StructureType.SHADER_MODULE_CREATE_INFO,
+		sType    = .SHADER_MODULE_CREATE_INFO,
 		codeSize = len(spv),
 		pCode    = raw_data(slice.reinterpret([]u32, spv)), //Needs to be a pointer to u32
 	}

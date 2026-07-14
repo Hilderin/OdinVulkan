@@ -64,7 +64,7 @@ create_instance :: proc() -> vk.Instance {
 	}
 
 	app_info := vk.ApplicationInfo {
-		sType              = vk.StructureType.APPLICATION_INFO,
+		sType              = .APPLICATION_INFO,
 		pApplicationName   = "Vulkan initialization",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
@@ -79,7 +79,7 @@ create_instance :: proc() -> vk.Instance {
 	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
 
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
-		sType           = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		sType           = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 		messageSeverity = g_debug_level,
 		messageType     = {.GENERAL, .VALIDATION, .PERFORMANCE},
 		pfnUserCallback = debug_callback,
@@ -87,7 +87,7 @@ create_instance :: proc() -> vk.Instance {
 	}
 
 	create_info := vk.InstanceCreateInfo {
-		sType                   = vk.StructureType.INSTANCE_CREATE_INFO,
+		sType                   = .INSTANCE_CREATE_INFO,
 		pApplicationInfo        = &app_info,
 		enabledExtensionCount   = u32(len(ext_names)),
 		ppEnabledExtensionNames = raw_data(ext_names[:]),
@@ -155,20 +155,20 @@ get_device_features :: proc(
 	vk.PhysicalDeviceFeatures,
 ) {
 	vulkan13_features := vk.PhysicalDeviceVulkan13Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		sType = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 	}
 	extended_dynamic_state_features := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType = vk.StructureType.PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+		sType = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
 	}
 	vulkan13_features.pNext = &extended_dynamic_state_features
 
 	vulkan11_features := vk.PhysicalDeviceVulkan11Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		sType = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 		pNext = &vulkan13_features,
 	}
 
 	features2 := vk.PhysicalDeviceFeatures2 {
-		sType = vk.StructureType.PHYSICAL_DEVICE_FEATURES_2,
+		sType = .PHYSICAL_DEVICE_FEATURES_2,
 		pNext = &vulkan11_features,
 	}
 

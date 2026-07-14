@@ -1,3 +1,8 @@
+---
+title: 02 — Instance
+nav_order: 4
+---
+
 # 02 - Instance
 
 The previous step was a smoke test: link Vulkan and GLFW, ask for an instance, see if anything explodes. This step is the real first building block.
@@ -13,7 +18,7 @@ The corresponding chapters in the Vulkan Tutorial are:
 The full source for this step lives in [`src/02_instance/main.odin`](../src/02_instance/main.odin). Open it side by side with this doc.
 
 
-## What we want to prove
+## What we want to accomplish
 
 1. We can put instance creation behind a function, instead of doing it inline in `main`.
 2. We can query the **instance extensions** GLFW requires and pass them to Vulkan. This is what makes the bridge between a window system and Vulkan possible.
@@ -23,43 +28,85 @@ The full source for this step lives in [`src/02_instance/main.odin`](../src/02_i
 If all four pass, we have a foundation that the next steps (validation layers, physical device selection, the window itself) can build on.
 
 
+## In short
+
+- Add a `vk_check` helper that turns a `vk.Result` into a readable assertion failure, so we stop writing the same error check by hand everywhere.
+- Move instance creation into a `create_instance` proc that returns a plain `vk.Instance` — failure aborts from inside, the caller never sees a broken handle.
+- Fill in a `vk.ApplicationInfo` targeting Vulkan 1.4, and an `vk.InstanceCreateInfo` carrying the extensions GLFW asks for on this platform.
+- Call `vk.CreateInstance`, load the instance-level function pointers, and return the handle.
+- In `main`, initialise GLFW, create the instance, print a couple of lines, then destroy the instance before exiting.
+
+
 ## The code, step by step
 
 ### Imports
 
-```odin
+```c
 import "core:fmt"
 import "core:os"
+import "core:reflect"
 
 import "vendor:glfw"
 import vk "vendor:vulkan"
 ```
 
-Same as the smoke test. `core:fmt` and `core:os` for printing and exiting, `vendor:glfw` for windowing, and `vendor:vulkan` aliased as `vk` because typing `vulkan` on every line gets old fast.
+Same as the smoke test, plus one addition. `core:fmt` and `core:os` for printing and exiting, `vendor:glfw` for windowing, and `vendor:vulkan` aliased as `vk` because typing `vulkan` on every line gets old fast.
+
+The newcomer is `core:reflect`. We use it in `vk_check` (just below) to turn a `vk.Result` enum value into a human-readable string at runtime. Without `reflect.enum_string`, an assertion message would just print the numeric value of the result code, which is the kind of thing that makes a bug report useless.
+
+
+### A small helper: `vk_check`
+
+```c
+vk_check :: proc(result: vk.Result, operation: string, loc := #caller_location) {
+    if result == .SUCCESS {
+        return
+    }
+
+    p := context.assertion_failure_proc
+
+    when ODIN_DEBUG {
+        p(operation, reflect.enum_string(result), loc)
+    } else {
+        p(operation, "Vulkan operation failed", loc)
+    }
+}
+```
+
+Vulkan functions don't throw and Odin doesn't either, so the pattern you'd see in a C++ tutorial — `if (vkCreateInstance(...) != VK_SUCCESS) throw ...` — turns into "grab the result, look at it". Doing that by hand after every call gets tedious fast, and people start skipping the check, which is how silent bugs creep in.
+
+`vk_check` is our way of being honest about it without writing the same six lines over and over. You hand it a `vk.Result` and a short string describing what you were doing. If the result is `.SUCCESS`, it returns immediately and nothing else happens. If it isn't, it calls the context's `assertion_failure_proc` — the same procedure Odin's `assert` statement uses internally — which by default prints the message and aborts.
+
+Two details worth understanding:
+
+- `loc := #caller_location` captures *where `vk_check` was called from*, not where it's defined. Those file/line numbers end up in the assertion output, so the error message points at *your* code, not at the helper. This is the same trick Odin's built-in `assert` uses.
+- The `when ODIN_DEBUG` branch exists because `reflect.enum_string` only works in debug builds by default — reflection metadata for enum names is stripped in release. In a release build we fall back to a generic "Vulkan operation failed" string. The check is still there, the program still aborts, we just lose the precise result code in the message. That's a fine tradeoff, since you should be debugging with validation layers in debug anyway.
+
+The end result: a failed Vulkan call in debug prints something like `failed to create instance! VK_ERROR_EXTENSION_NOT_PRESENT` and stops the program. That's what we want.
 
 
 ### Wrapping creation in a procedure
 
-```odin
-create_instance :: proc() -> (vk.Instance, bool) {
+```c
+create_instance :: proc() -> vk.Instance {
     vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
     ...
-    return instance, true
+    return instance
 }
 ```
 
-The whole point of this step. Instead of doing `vk.CreateInstance` in `main` and moving on, we put it behind `create_instance` which returns a `(vk.Instance, bool)` pair: the handle, and a success flag.
+The whole point of this step. Instead of doing `vk.CreateInstance` in `main` and moving on, we put it behind `create_instance` which returns just a `vk.Instance`.
 
-This is a small Odin-ism worth getting used to. Vulkan functions don't throw, and Odin doesn't either, so the natural way to report a failure from a procedure is to return multiple values. The caller checks the `bool` and decides what to do. We could return a tagged union (`union(ok)`), but a plain tuple is honest enough here — there's exactly one interesting failure mode and we want a handle on success.
+Why not also a success flag, like in the smoke test? Because we have `vk_check` now. If creation fails inside the procedure, `vk_check` aborts the program before we ever reach the `return`. There's no path through `create_instance` that returns a "failed" instance, so there's no point in signalling failure out-of-band either. The caller just gets a valid handle, or the program is already dead.
 
 The first line inside the proc is the same loader call from step 01. It has to happen before any other Vulkan call, otherwise the `vk` package's function pointers are still null and `vk.CreateInstance` will crash. Worth repeating: Vulkan is a *loaded* API. The functions you call aren't resolved by the linker, they're fetched at runtime.
 
 
 ### The ApplicationInfo
 
-```odin
+```c
 app_info := vk.ApplicationInfo {
-    sType = vk.StructureType.APPLICATION_INFO,
+    sType = .APPLICATION_INFO,
     pApplicationName = "Instance creation",
     applicationVersion = vk.MAKE_VERSION(1, 0, 0),
     pEngineName = "No Engine",
@@ -80,14 +127,14 @@ In C you'd also have to zero the struct before filling it. Odin zeroes for you �
 
 ### The InstanceCreateInfo — and the new bit
 
-```odin
+```c
 extensions := glfw.GetRequiredInstanceExtensions()
 create_info := vk.InstanceCreateInfo {
-    sType = vk.StructureType.INSTANCE_CREATE_INFO,
-    pApplicationInfo = &app_info,
-    enabledExtensionCount = u32(len(extensions)),
+    sType                   = .INSTANCE_CREATE_INFO,
+    pApplicationInfo        = &app_info,
+    enabledExtensionCount   = u32(len(extensions)),
     ppEnabledExtensionNames = raw_data(extensions),
-    enabledLayerCount = 0,
+    enabledLayerCount       = 0,
 }
 ```
 
@@ -95,7 +142,7 @@ The `InstanceCreateInfo` is what we actually hand to Vulkan. `pApplicationInfo` 
 
 The interesting part, and the new thing this step introduces, is the extensions block:
 
-```odin
+```c
 extensions := glfw.GetRequiredInstanceExtensions()
 create_info.enabledExtensionCount = u32(len(extensions))
 create_info.ppEnabledExtensionNames = raw_data(extensions)
@@ -117,37 +164,32 @@ A subtle point: in the smoke test we left extensions empty too. That worked beca
 
 ### Actually creating it
 
-```odin
+```c
 instance: vk.Instance
-result := vk.CreateInstance(&create_info, nil, &instance)
-if result != vk.Result.SUCCESS {
-    fmt.eprintln("failed to create instance!")
-    return nil, false
-}
+vk_check(vk.CreateInstance(&create_info, nil, &instance), "failed to create instance!")
+
 vk.load_proc_addresses_instance(instance)
 
-return instance, true
+return instance
 ```
 
-The classic Vulkan call shape:
+The classic Vulkan call shape, compressed by `vk_check`:
 
-1. declare a result variable and an output variable,
-2. call the function with pointers to both,
-3. check the `vk.Result`,
+1. declare an output variable,
+2. call the function with a pointer to it,
+3. hand the result to `vk_check`,
 4. only then touch the output.
 
 `vk.CreateInstance` takes three arguments here: the create info pointer, a custom allocator (we pass `nil` for the default), and a pointer to the instance handle it should write to.
 
-If it fails, we return `nil, false` instead of exiting. That's deliberate — we want the *caller* to decide whether a failed instance creation is fatal. In this small program it is, but keeping that decision in `main` makes the procedure reusable later when we'll want to fall back to a different API version or extension set.
-
-On success, `vk.load_proc_addresses_instance(instance)` runs. This is the second loader call, and it's mandatory: *instance-level* Vulkan functions (everything except `vk.CreateInstance` and the handful of global helpers) need a live instance handle to be loaded. We did the global load with `glfw.GetInstanceGetProcAddress` at the top; this one resolves the rest. Forget it and the subsequent `vk.DestroyInstance` call will crash.
+On success, `vk.load_proc_addresses_instance(instance)` runs. This is the second loader call, and it's mandatory: *instance-level* Vulkan functions (everything except `vk.CreateInstance` and the handful of global helpers) need a live instance handle to be loaded. We did the global load with `glfw.GetInstanceProcAddress` at the top; this one resolves the rest. Forget it and the subsequent `vk.DestroyInstance` call will crash.
 
 The Khronos tutorial uses the C++ bindings, where this happens implicitly through RAII. We're using the raw API, so we do it by hand — but it's two lines, not magic.
 
 
 ### main: init, create, clean up
 
-```odin
+```c
 main :: proc() {
     fmt.println("Instance creation")
     fmt.println("-------------------------------------------")
@@ -157,11 +199,7 @@ main :: proc() {
         os.exit(1)
     }
 
-    instance, ok := create_instance()
-    if !ok {
-        fmt.eprintln("Create instance failed.")
-        os.exit(1)
-    }
+    instance := create_instance()
     fmt.println("Create instance... OK")
 
     fmt.println()
@@ -176,11 +214,10 @@ main :: proc() {
 `main` is mostly orchestration:
 
 - `glfw.Init()` first. Same as the smoke test — if GLFW can't come up, there's no point.
-- Then the multiple-value return from `create_instance` gets unpacked into `instance` and `ok` in one go. Odin lets you do `a, b := proc()` directly, which is cleaner than the C++ alternative of catching an exception or unwrapping a `Result`.
-- If `ok` is false, we print and `os.exit(1)`. This is where we decide the failure is fatal — the procedure just reported it.
+- Then `create_instance()` runs. Because failure is handled by `vk_check` *inside* the procedure, we don't need to check anything here — by the time we reach the next line, we have a working instance, or the program is already gone. The control flow reads exactly like the happy path, and that's the point.
 - The interesting new bit at the bottom:
 
-```odin
+```c
 if instance != nil {
     vk.DestroyInstance(instance, nil)
 }
@@ -188,7 +225,7 @@ if instance != nil {
 
 Vulkan does not garbage-collect anything. Every object you create, you destroy, *in the right order*, when you're done. `vk.DestroyInstance` is the cleanup call matching `vk.CreateInstance`. The second argument is an optional allocator callback; we pass `nil` for the default, same as we did for create.
 
-The `nil`-check is belt-and-braces: if `create_instance` returned `false`, we already exited, so we'd never reach this line with a nil instance. But the instinct to keep resource cleanup behind a null check is a good one to internalise in Vulkan, where you'll soon be destroying dozens of objects in a specific order at shutdown. A null check is cheap, a segfault on cleanup is not.
+The `nil`-check is belt-and-braces: if `create_instance` returned a nil instance we'd have aborted inside the procedure already, so we'd never reach this line with a nil handle. But the instinct to keep resource cleanup behind a null check is a good one to internalise in Vulkan, where you'll soon be destroying dozens of objects in a specific order at shutdown. A null check is cheap, a segfault on cleanup is not.
 
 One thing worth flagging: Vulkan's creation and destruction calls don't pair symmetrically the way `malloc`/`free` do. The order you destroy things in matters — children before parents. Right now we only have one object, so the order is trivial. But once we have a `Device` allocated from a `PhysicalDevice` and a `Surface` hanging off the `Instance`, you destroy in reverse: device first, then surface, then instance. We'll come back to this in later steps.
 
@@ -214,7 +251,7 @@ Instance creation completed with success!
 
 No window pops up — that's expected, we're not asking GLFW for one yet. The success message is the contract: instance was created, instance was destroyed, program exited cleanly.
 
-If `Create instance failed.` shows up instead, the most common cause is missing the extensions GLFW asked for. That would hint at a partial Vulkan install — for example, `VK_KHR_surface` not being picked up by the loader. Re-check [prerequisites](./prerequisites.md) and your `vulkaninfo --summary` output.
+If `failed to create instance!` shows up instead, the most common cause is missing the extensions GLFW asked for. That would hint at a partial Vulkan install — for example, `VK_KHR_surface` not being picked up by the loader. Re-check [prerequisites](./prerequisites.md) and your `vulkaninfo --summary` output.
 
 
 ## What's next

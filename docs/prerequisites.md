@@ -1,19 +1,27 @@
+---
+title: Prerequisites
+nav_order: 2
+---
+
 # Prerequisites
 
 You will need:
 - Odin language
-- VSCode and plugins
-- Vendor libs
+- VSCode and the Odin Language Extension
+- Vulkan SDK
+- GLFW
+- The Slang extension (highly recommended for editing shaders)
+- `clang-format` if you want Slang autoformatting on save
 
 
 
 
 # Install Odin
 
-Follow instructions: https://odin-lang.org/docs/install/
+Follow the instructions on the [Odin install page](https://odin-lang.org/docs/install/).
 
 At the end you should be able to execute:
-```
+```bash
 odin version
 ```
 
@@ -34,7 +42,7 @@ You will need:
 
 
 ## Install VSCode
-Follow insttructions: https://code.visualstudio.com/download
+Follow the instructions on the [VSCode download page](https://code.visualstudio.com/download).
 
 At the end you should be able to open VSCode from your start menu or via the `code` command.
 
@@ -45,13 +53,13 @@ This extension will provide a Language Server (LSP) which allows VSCode to valid
 From VSCode, go to Extensions which should be available from the side bar (Default shortcut is Ctrl-Shift-X).
 Search for `Odin Language`. Be sure tou select the Odin language extension published by Daniel Gavin and click `install`.
 
-For more instructions: https://github.com/DanielGavin/ols
+For more instructions: [the ols repository on GitHub](https://github.com/DanielGavin/ols).
 
-The first time you start a project with a .odin file, the `ols.json` file should be created at the root of your project. This file contains configuration for the Odin Language Server. The list of the available settings are defined here: https://github.com/DanielGavin/ols?tab=readme-ov-file#configuration. This file is already present for each project in this repository.
+The first time you start a project with a .odin file, the `ols.json` file should be created at the root of your project. This file contains configuration for the Odin Language Server. The list of the available settings are defined in the [ols configuration section](https://github.com/DanielGavin/ols?tab=readme-ov-file#configuration). This file is already present for each project in this repository.
 
 
-### WARNING:
-The first time you will open a `.odin`file the extension will ask via a notification to install the lastest version, you need to click `Yes`. Otherwise the extension will not install. 
+{: .warning }
+> The first time you will open a `.odin` file, the extension will ask via a notification to install the latest version. You need to click `Yes`. Otherwise the extension will not install. 
 
 
 ## VSCode tasks.json
@@ -64,18 +72,60 @@ Note: The tasks.json and launch.json files have to be in the `.vscode` folder at
 ## Vulkan SDK
 
 Follow instructions: 
-- Windows: https://vulkan.lunarg.com/doc/sdk/latest/windows/getting_started.html
-- Linux: https://vulkan.lunarg.com/doc/sdk/latest/linux/getting_started.html
-- Mac: https://vulkan.lunarg.com/doc/sdk/latest/mac/getting_started.html
+- Windows: [Vulkan SDK - Windows getting started](https://vulkan.lunarg.com/doc/sdk/latest/windows/getting_started.html)
+- Linux: [Vulkan SDK - Linux getting started](https://vulkan.lunarg.com/doc/sdk/latest/linux/getting_started.html)
+- Mac: [Vulkan SDK - Mac getting started](https://vulkan.lunarg.com/doc/sdk/latest/mac/getting_started.html)
 
 
 ## GLFW
 
-On Linux, you will need to install the precompiled GLFW librairy:
+GLFW handles the window, the inputs and the surface for us. This project uses Odin's bundled `vendor:glfw` collection, so the way it links depends on your OS.
+
+{: .note }
+> On Windows and macOS, Odin ships a prebuilt static GLFW library in its `vendor/glfw/lib/` folder, so there is nothing to install. The build picks it up automatically.
+
+### Linux
+
+Linux links against the system's GLFW, so you need the development package:
+
+- Debian / Ubuntu:
+  ```
+  sudo apt install libglfw3-dev
+  ```
+- Fedora / RHEL:
+  ```
+  sudo dnf install glfw-devel
+  ```
+- Arch:
+  ```
+  sudo pacman -S glfw
+  ```
+
+If you would rather link statically, drop a `libglfw3.a` next to Odin's `vendor/glfw/lib/` and build with `GLFW_SHARED=false`:
+
 ```
-sudo apt install libglfw3-dev
+odin build . -debug -define:GLFW_SHARED=false
 ```
-**TO COMPLETE FOR WINDOWS, MAC, NON DEBIAN LINUX**
+
+### macOS
+
+By default Odin uses the bundled `lib/darwin/libglfw3.a` static library, so no extra install is needed.
+
+If you prefer the dynamic build (`GLFW_SHARED=true`), install it through Homebrew:
+
+```
+brew install glfw
+```
+
+### Windows
+
+By default Odin uses the bundled `glfw3_mt.lib` static library, so no extra install is needed.
+
+If you want the DLL build (`GLFW_SHARED=true`), grab the precompiled Windows binaries from the [GLFW download page](https://www.glfw.org/download), put `glfw3.dll` next to your executable and build with:
+
+```
+odin build . -debug -define:GLFW_SHARED=true
+```
 
 
 ## Slang extension
@@ -85,7 +135,7 @@ I suggest you install the `Slang` extension for VSCode to have color highlightin
 Search for 'Slang' in the Extensions panel in VSCode and click install.
 
 
-For more information: https://github.com/shader-slang/slang-vscode-extension
+For more information: [the Slang VSCode extension on GitHub](https://github.com/shader-slang/slang-vscode-extension).
 
 If you want autoformatting, you will need `clang-format` installed:
 Linux:
@@ -114,18 +164,5 @@ Good job, everything is setup correctly!
 ```
 
 
-Note: The first time you will start debugging in VSCode, there's a delay of a couple of seconds for some reason.
-
-Refer to the Troubleshooting section if you need help.
-
-
-
-## Troubleshooting
-
-
-odin build .
-
-/usr/bin/ld: cannot find -lglfw: No such file or directory
-clang: error: linker command failed with exit code 1 (use -v to see invocation)
-
-sudo apt install libglfw3-dev
+{: .warning }
+> The first time you start debugging in VSCode, there's a delay of a couple of seconds before the debugger attaches, for some reason. Subsequent runs are fast.

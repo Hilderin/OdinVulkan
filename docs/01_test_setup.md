@@ -1,3 +1,8 @@
+---
+title: 01 — Test Setup
+nav_order: 3
+---
+
 # 01 - Test Setup
 
 This first step isn't going to render anything. Before we go further, we want to make sure the whole toolchain works: that Odin compiles, that GLFW initialises, that the Vulkan SDK is reachable, and that our GPU actually supports Vulkan.
@@ -24,7 +29,7 @@ If all five pass, we're ready to actually build something. If any of them fails,
 
 ### Imports
 
-```odin
+```c
 import "core:fmt"
 import "core:os"
 
@@ -42,7 +47,7 @@ The `vendor:` prefix is Odin's way of saying "this lives in the vendor folder of
 
 ### Proving GLFW works
 
-```odin
+```c
 if !glfw.Init() {
     fmt.eprintln("Failed to initialize GLFW")
     os.exit(1)
@@ -60,7 +65,7 @@ This is the main part. We don't just want to *link* Vulkan — we want to actual
 
 #### Loading function pointers
 
-```odin
+```c
 vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 ```
 
@@ -70,9 +75,9 @@ We pass it in here, before calling any Vulkan function, so Odin can populate its
 
 #### The ApplicationInfo
 
-```odin
+```c
 app_info := vk.ApplicationInfo {
-    sType = vk.StructureType.APPLICATION_INFO,
+    sType = .APPLICATION_INFO,
     pApplicationName = "Test setup",
     applicationVersion = vk.MAKE_VERSION(1, 0, 0),
     pEngineName = "No Engine",
@@ -87,9 +92,9 @@ The `ApplicationInfo` itself is just metadata: app name, version, engine name, a
 
 #### The InstanceCreateInfo
 
-```odin
+```c
 create_info := vk.InstanceCreateInfo {
-    sType = vk.StructureType.INSTANCE_CREATE_INFO,
+    sType = .INSTANCE_CREATE_INFO,
     pApplicationInfo = &app_info,
     enabledLayerCount = 0,
 }
@@ -105,7 +110,7 @@ A small detail: in C, you'd have to remember to zero out the struct before filli
 
 #### Actually creating it
 
-```odin
+```c
 instance: vk.Instance
 result := vk.CreateInstance(&create_info, nil, &instance)
 if result != vk.Result.SUCCESS {
@@ -127,7 +132,7 @@ Oh, and after creating the instance, we call `load_proc_addresses_instance(insta
 
 #### Checking the VULKAN_SDK path
 
-```odin
+```c
 vulkan_sdk, found := os.lookup_env("VULKAN_SDK", context.allocator)
 defer delete(vulkan_sdk)
 if !found || vulkan_sdk == "" {
@@ -143,7 +148,7 @@ The only way to fix this is to install the SDK and set the variable. The [prereq
 
 #### Checking the validation layers
 
-```odin
+```c
 if !check_validation_layer_support() {
     fmt.eprintln(
         "Vulkan validation layers not available. The Vulkan SDK is not correctly installed. ..."
@@ -157,7 +162,7 @@ The SDK ships a validation layer named `VK_LAYER_KHRONOS_validation`. If we *can
 
 The helper that does the searching:
 
-```odin
+```c
 check_validation_layer_support :: proc() -> b32 {
     layer_count: u32
     vk.EnumerateInstanceLayerProperties(&layer_count, nil)
@@ -186,7 +191,7 @@ Then we loop over what we got and compare each `layerName` against `"VK_LAYER_KH
 
 #### Checking for the slang compiler
 
-```odin
+```c
 slangc_path := fmt.tprintf("%s/bin/slangc", vulkan_sdk)
 if !os.exists(slangc_path) {
     fmt.eprintfln("slangc executable not found: '%q'. ...", slangc_path)

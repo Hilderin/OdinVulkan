@@ -22,7 +22,7 @@ main :: proc() {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 
 	app_info := vk.ApplicationInfo {
-		sType              = vk.StructureType.APPLICATION_INFO,
+		sType              = .APPLICATION_INFO,
 		pApplicationName   = "Test setup",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
@@ -31,7 +31,7 @@ main :: proc() {
 	}
 
 	create_info := vk.InstanceCreateInfo {
-		sType             = vk.StructureType.INSTANCE_CREATE_INFO,
+		sType             = .INSTANCE_CREATE_INFO,
 		pApplicationInfo  = &app_info,
 		enabledLayerCount = 0,
 	}

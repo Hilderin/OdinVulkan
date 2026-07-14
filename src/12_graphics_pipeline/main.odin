@@ -70,7 +70,7 @@ create_instance :: proc() -> vk.Instance {
 	}
 
 	app_info := vk.ApplicationInfo {
-		sType              = vk.StructureType.APPLICATION_INFO,
+		sType              = .APPLICATION_INFO,
 		pApplicationName   = "Vulkan initialization",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
@@ -85,7 +85,7 @@ create_instance :: proc() -> vk.Instance {
 	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
 
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
-		sType           = vk.StructureType.DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		sType           = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 		messageSeverity = g_debug_level,
 		messageType     = {.GENERAL, .VALIDATION, .PERFORMANCE},
 		pfnUserCallback = debug_callback,
@@ -93,7 +93,7 @@ create_instance :: proc() -> vk.Instance {
 	}
 
 	create_info := vk.InstanceCreateInfo {
-		sType                   = vk.StructureType.INSTANCE_CREATE_INFO,
+		sType                   = .INSTANCE_CREATE_INFO,
 		pApplicationInfo        = &app_info,
 		enabledExtensionCount   = u32(len(ext_names)),
 		ppEnabledExtensionNames = raw_data(ext_names[:]),
@@ -176,20 +176,20 @@ get_device_features :: proc(
 	vk.PhysicalDeviceFeatures,
 ) {
 	vulkan13_features := vk.PhysicalDeviceVulkan13Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		sType = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 	}
 	extended_dynamic_state_features := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType = vk.StructureType.PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+		sType = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
 	}
 	vulkan13_features.pNext = &extended_dynamic_state_features
 
 	vulkan11_features := vk.PhysicalDeviceVulkan11Features {
-		sType = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		sType = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 		pNext = &vulkan13_features,
 	}
 
 	features2 := vk.PhysicalDeviceFeatures2 {
-		sType = vk.StructureType.PHYSICAL_DEVICE_FEATURES_2,
+		sType = .PHYSICAL_DEVICE_FEATURES_2,
 		pNext = &vulkan11_features,
 	}
 
@@ -321,36 +321,36 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 
 	queue_priority: f32 = 0.5
 	queue_create_info := vk.DeviceQueueCreateInfo {
-		sType            = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
+		sType            = .DEVICE_QUEUE_CREATE_INFO,
 		queueFamilyIndex = queue_index,
 		queueCount       = 1,
 		pQueuePriorities = &queue_priority,
 	}
 
 	device_feature_extended_dynamic_state := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType                = vk.StructureType.PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+		sType                = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
 		extendedDynamicState = true,
 	}
 
 	device_feature_vulkan13 := vk.PhysicalDeviceVulkan13Features {
-		sType            = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		sType            = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 		dynamicRendering = true,
 		pNext            = &device_feature_extended_dynamic_state,
 	}
 
 	device_feature_vulkan11 := vk.PhysicalDeviceVulkan11Features {
-		sType                = vk.StructureType.PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		sType                = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 		shaderDrawParameters = true,
 		pNext                = &device_feature_vulkan13,
 	}
 
 	device_feature_2 := vk.PhysicalDeviceFeatures2 {
-		sType = vk.StructureType.PHYSICAL_DEVICE_FEATURES_2,
+		sType = .PHYSICAL_DEVICE_FEATURES_2,
 		pNext = &device_feature_vulkan11,
 	}
 
 	create_info := vk.DeviceCreateInfo {
-		sType                   = vk.StructureType.DEVICE_CREATE_INFO,
+		sType                   = .DEVICE_CREATE_INFO,
 		pQueueCreateInfos       = &queue_create_info,
 		queueCreateInfoCount    = 1,
 		enabledExtensionCount   = u32(len(g_required_extensions)),
@@ -479,7 +479,7 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 	present_mode := choose_present_mode(available_present_modes)
 
 	create_info := vk.SwapchainCreateInfoKHR {
-		sType            = vk.StructureType.SWAPCHAIN_CREATE_INFO_KHR,
+		sType            = .SWAPCHAIN_CREATE_INFO_KHR,
 		surface          = surface,
 		minImageCount    = min_image_count,
 		imageFormat      = format.format,
@@ -504,7 +504,7 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> []vk.ImageView {
 
 	create_info := vk.ImageViewCreateInfo {
-		sType            = vk.StructureType.IMAGE_VIEW_CREATE_INFO,
+		sType            = .IMAGE_VIEW_CREATE_INFO,
 		viewType         = vk.ImageViewType.D2,
 		format           = swap_chain_format,
 		subresourceRange = {{.COLOR}, 0, 1, 0, 1},
@@ -545,7 +545,7 @@ create_shader_module :: proc(device: vk.Device, slang_path: string, entry_points
 	defer delete(spv)
 
 	create_info := vk.ShaderModuleCreateInfo {
-		sType    = vk.StructureType.SHADER_MODULE_CREATE_INFO,
+		sType    = .SHADER_MODULE_CREATE_INFO,
 		codeSize = len(spv),
 		pCode    = raw_data(slice.reinterpret([]u32, spv)), //Needs to be a pointer to u32
 	}
@@ -578,15 +578,15 @@ create_graphics_pipeline :: proc(
 
 	// Shaders create info. One per entrypoint.
 	shaders_create_info := []vk.PipelineShaderStageCreateInfo {
-		{sType = vk.StructureType.PIPELINE_SHADER_STAGE_CREATE_INFO, stage = {.VERTEX}, module = shader_module, pName = vertex_entry_cstr},
-		{sType = vk.StructureType.PIPELINE_SHADER_STAGE_CREATE_INFO, stage = {.FRAGMENT}, module = shader_module, pName = fragment_entry_cstr},
+		{sType = .PIPELINE_SHADER_STAGE_CREATE_INFO, stage = {.VERTEX}, module = shader_module, pName = vertex_entry_cstr},
+		{sType = .PIPELINE_SHADER_STAGE_CREATE_INFO, stage = {.FRAGMENT}, module = shader_module, pName = fragment_entry_cstr},
 	}
 
 	// -----------------------------------
 	// Dynamic state - Defines what can be dymanic in the pipeline
 	dynamic_states := []vk.DynamicState{.VIEWPORT, .SCISSOR}
 	dynamic_state_create_info := vk.PipelineDynamicStateCreateInfo {
-		sType             = vk.StructureType.PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		sType             = .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 		dynamicStateCount = u32(len(dynamic_states)),
 		pDynamicStates    = raw_data(dynamic_states),
 	}
@@ -596,7 +596,7 @@ create_graphics_pipeline :: proc(
 	// Configure the data format of vertices
 	// Because we're hard coding the vertex data directly in the vertex shader, we'll fill in this structure to specify that there is no vertex data to load for now. We'll get back to it in the vertex buffer chapter.
 	vertex_input_create_info := vk.PipelineVertexInputStateCreateInfo {
-		sType                           = vk.StructureType.PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		sType                           = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		vertexBindingDescriptionCount   = 0,
 		pVertexBindingDescriptions      = nil,
 		vertexAttributeDescriptionCount = 0,
@@ -607,14 +607,14 @@ create_graphics_pipeline :: proc(
 	// Input assembly
 	// Configure topology and if primitive restart should be enabled.
 	input_assembly_create_info := vk.PipelineInputAssemblyStateCreateInfo {
-		sType                  = vk.StructureType.PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+		sType                  = .PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 		topology               = .TRIANGLE_LIST,
 		primitiveRestartEnable = false,
 	}
 
 	// No need to specify the pViewports and pScissors because they are dynamic due to the dynamic_states above.
 	viewport_state_create_info := vk.PipelineViewportStateCreateInfo {
-		sType         = vk.StructureType.PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		sType         = .PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 		viewportCount = 1,
 		scissorCount  = 1,
 	}
@@ -623,7 +623,7 @@ create_graphics_pipeline :: proc(
 	// -----------------------------------
 	// Rasterizer
 	rasterizer_create_info := vk.PipelineRasterizationStateCreateInfo {
-		sType                   = vk.StructureType.PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+		sType                   = .PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		depthClampEnable        = false,
 		rasterizerDiscardEnable = false,
 		polygonMode             = .FILL,
@@ -637,7 +637,7 @@ create_graphics_pipeline :: proc(
 	// Multisampling
 	// Disabled for now. We will enable it in a later chapter.
 	multisampling_create_info := vk.PipelineMultisampleStateCreateInfo {
-		sType                 = vk.StructureType.PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+		sType                 = .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 		sampleShadingEnable   = false,
 		rasterizationSamples  = {._1},
 		minSampleShading      = 1,
@@ -680,7 +680,7 @@ create_graphics_pipeline :: proc(
 	}
 
 	color_blend_create_info := vk.PipelineColorBlendStateCreateInfo {
-		sType           = vk.StructureType.PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+		sType           = .PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		logicOpEnable   = false,
 		logicOp         = .COPY,
 		attachmentCount = 1,
@@ -691,7 +691,7 @@ create_graphics_pipeline :: proc(
 	// Pipeline layout
 	// No uniform right now, so create an empty pipeline layout. We will be back for that too in later chapter.
 	pipeline_layout_create_info := vk.PipelineLayoutCreateInfo {
-		sType                  = vk.StructureType.PIPELINE_LAYOUT_CREATE_INFO,
+		sType                  = .PIPELINE_LAYOUT_CREATE_INFO,
 		setLayoutCount         = 0,
 		pSetLayouts            = nil,
 		pushConstantRangeCount = 0,
@@ -706,7 +706,7 @@ create_graphics_pipeline :: proc(
 	// To use dynamic rendering, we need to specify the formats of the attachments that will be used during rendering.
 	format := swap_chain_format
 	pipeline_rendering_create_info := vk.PipelineRenderingCreateInfo {
-		sType                   = vk.StructureType.PIPELINE_RENDERING_CREATE_INFO,
+		sType                   = .PIPELINE_RENDERING_CREATE_INFO,
 		colorAttachmentCount    = 1,
 		pColorAttachmentFormats = &format,
 	}
@@ -716,7 +716,7 @@ create_graphics_pipeline :: proc(
 	// Finally!! We create the pipeline that will be used to render!
 
 	pipeline_create_info := vk.GraphicsPipelineCreateInfo {
-		sType               = vk.StructureType.GRAPHICS_PIPELINE_CREATE_INFO,
+		sType               = .GRAPHICS_PIPELINE_CREATE_INFO,
 		stageCount          = 2,
 		pStages             = raw_data(shaders_create_info),
 		pVertexInputState   = &vertex_input_create_info,

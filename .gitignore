@@ -1,2 +1,7 @@
-# Output folder
+# Output folders
 bin
+docs/_site
+
+# Jekyll dependencies installed locally
+docs/.bundle
+docs/vendor/bundle

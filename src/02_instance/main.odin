@@ -25,7 +25,7 @@ create_instance :: proc() -> vk.Instance {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 
 	app_info := vk.ApplicationInfo {
-		sType              = vk.StructureType.APPLICATION_INFO,
+		sType              = .APPLICATION_INFO,
 		pApplicationName   = "Instance creation",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
@@ -35,7 +35,7 @@ create_instance :: proc() -> vk.Instance {
 
 	extensions := glfw.GetRequiredInstanceExtensions()
 	create_info := vk.InstanceCreateInfo {
-		sType                   = vk.StructureType.INSTANCE_CREATE_INFO,
+		sType                   = .INSTANCE_CREATE_INFO,
 		pApplicationInfo        = &app_info,
 		enabledExtensionCount   = u32(len(extensions)),
 		ppEnabledExtensionNames = raw_data(extensions),

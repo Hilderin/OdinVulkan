@@ -1,4 +1,16 @@
-# Odin Vulkan Tutorial — docs
+---
+title: Home
+nav_order: 1
+---
+
+# Odin Vulkan Tutorial
+
+Hello hello!!
+Yep, another Vulkan tutorial based on the [official Vulkan tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html)! While digging deeper into Odin and Vulkan, I realized the amount of tutorials and documentation out there is pretty thin. I love the Odin language for its fluidity, its ease... generally the vibe is, if it compiles, it should work fine. So, why not redo the Vulkan tutorial in this still fairly new language.
+
+At the same time, I'll throw in my two cents in the tutorial by adding a few details I found important that I personally missed the first times I went through the tutorial. My goal is to share as much knowledge as possible on the subject while keeping it accessible, interesting and relevant.
+
+The other thing that caused trouble is that there are two versions of the tutorial: the first version ([https://vulkan-tutorial.com](https://vulkan-tutorial.com)) is based on the C API, while the new official one from Khronos ([https://docs.vulkan.org/tutorial/latest/00_Introduction.html](https://docs.vulkan.org/tutorial/latest/00_Introduction.html)) uses the C++ RAII version which often wraps the lower-level calls we'll be using in Odin. On the other hand, the more recent official tutorial uses version 1.4 of the Vulkan API as well as Slang instead of GLSL. This new version of the Vulkan API makes developers' lives slightly easier by enabling dynamic rendering. The idea here is therefore to use the new version of the API and use Slang, but in Odin.
 
 Each folder in `src/` is one step forward. The docs here explain what each step does and why it's done that way, in roughly the same order you'd write the code.
 

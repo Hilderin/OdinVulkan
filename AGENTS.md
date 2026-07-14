@@ -36,6 +36,29 @@ DON'T:
 - Don't over-explain trivial things, but don't skip the non-obvious ones either.
 
 
+# Documentation format (Jekyll / Just the Docs)
+
+The docs are published with Jekyll using the Just the Docs theme. Two rules to keep them rendering properly:
+
+1. **Every markdown file starts with a Jekyll front matter block**, exactly like `docs/01_test_setup.md`:
+   ```
+   ---
+   title: 01 — Test Setup
+   nav_order: 3
+   ---
+   ```
+   `title` is the page title shown in the sidebar. `nav_order` controls where it sits in the nav (lower comes first).
+
+2. **Odin code blocks use the `c` fence**, not `odin`. Jekyll's highlighter (Rouge) doesn't know about Odin, so ` ```odin ` would produce no highlighting at best and a broken build at worst. Use `c` instead, which is close enough and renders fine:
+   ````
+   ```c
+   import "core:fmt"
+   ```
+   ````
+
+Non-Odin blocks (shell commands, expected output) stay as plain ` ``` ` fences without a language, just like the existing docs.
+
+
 # Code standards
 All code must follow the conventions documented in `docs/code_standards.md` (naming, style, compiler flags, Vulkan-specific notes). Read it before writing or editing any Odin code.
 

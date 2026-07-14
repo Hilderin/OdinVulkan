@@ -1,8 +1,13 @@
+---
+title: Code Standards
+nav_order: 99
+---
+
 # Code standards
 
 This document lists the conventions we try to follow across every `src/` step. They are mostly the same as the [Odin examples naming and style convention](https://github.com/odin-lang/examples/wiki/Naming-and-style-convention), with a few notes specific to this project.
 
-The goal is not to be pedantic. The goal is that all the code in this repo looks like it was written by one person, and that `odin build` never stays silent about something we could have caught.
+The goal of these standards is to keep all the examples consistent, to match the Odin conventions you'll find in other projects, and to follow good practices.
 
 
 ## Naming
@@ -17,8 +22,7 @@ In general: `Ada_Case` for types, `snake_case` for values.
 | Procedures         | `snake_case`           |
 | Local variables    | `snake_case`           |
 | Constant variables | `SCREAMING_SNAKE_CASE` |
-
-Globals are prefixed with `g_`, e.g. `g_debug_level`, `g_validationLayers`. This is a small project with a handful of module-level values, and the prefix makes it obvious at the call site that you're reading or writing something outside the current proc.
+| Global variables   | `snake_case` (no special prefix) |
 
 
 ## Compiler flags
@@ -44,7 +48,7 @@ If any of these flag something, fix the code, don't relax the flags.
 
 ### Opening brace at end of line
 
-```odin
+```c
 some_proc :: proc() {
 }
 
@@ -56,7 +60,7 @@ Allman style (brace on its own line) is not used in this project.
 
 ### Prefer `val := Some_Type {` over `val: Some_Type = {`
 
-```odin
+```c
 cam := Camera {
 	position = { 50, 50, 10 },
 }
@@ -64,7 +68,7 @@ cam := Camera {
 
 Not:
 
-```odin
+```c
 cam: Camera = {
 	position = { 50, 50, 10 },
 }
@@ -74,13 +78,13 @@ Exception: `val: f32 = 5` and `val := f32(5)` are both fine.
 
 ### Prefer type inference
 
-```odin
+```c
 sound := load_sound(filename)
 ```
 
 Not:
 
-```odin
+```c
 sound: Sound = load_sound(filename)
 ```
 
@@ -88,7 +92,7 @@ Be explicit about the type only when it actually helps readability. One case whe
 
 ### Use initializers when possible
 
-```odin
+```c
 cam := Camera {
 	position = { 50, 50, 10 },
 	offset = { 10, 20 },
@@ -98,7 +102,7 @@ cam := Camera {
 
 Not:
 
-```odin
+```c
 cam: Camera
 cam.position = { 50, 50, 10 }
 cam.offset = { 10, 20 }
@@ -121,7 +125,7 @@ Indentation is tabs. Alignment between adjacent lines is spaces, so the alignmen
 
 When a parameter list is too long and gets wrapped, the continuation lines are indented with tabs up to the base column, then spaces to align with the first parameter:
 
-```odin
+```c
 some_proc :: proc(a: int, lot: f32, of: string, parameters: f64,
                   is: f32, fun: string) {
 	fmt.println(fun)

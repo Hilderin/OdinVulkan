@@ -3,6 +3,7 @@ package main
 import "base:runtime"
 import "core:fmt"
 import "core:os"
+import "core:reflect"
 
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -21,6 +22,19 @@ g_required_extensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 
 // Manage the escape key exit.
 g_running: bool = true
+
+
+vk_check :: proc(result: vk.Result, operation: string, loc := #caller_location) {
+	if result == .SUCCESS {
+		return
+	}
+	p := context.assertion_failure_proc
+	when ODIN_DEBUG {
+		p(operation, reflect.enum_string(result), loc)
+	} else {
+		p(operation, "Vulkan operation failed", loc)
+	}
+}
 
 
 debug_callback :: proc "system" (
@@ -44,13 +58,13 @@ debug_callback :: proc "system" (
 }
 
 
-create_instance :: proc() -> (vk.Instance, bool) {
+create_instance :: proc() -> vk.Instance {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 	if !are_layers_supported(g_validation_layers) {
 		fmt.eprintln(
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
-		return nil, false
+		os.exit(1)
 	}
 
 	app_info := vk.ApplicationInfo {
@@ -87,21 +101,14 @@ create_instance :: proc() -> (vk.Instance, bool) {
 	}
 
 	instance: vk.Instance
-	result := vk.CreateInstance(&create_info, nil, &instance)
-	if result != vk.Result.SUCCESS {
-		fmt.eprintln("failed to create instance!")
-		return nil, false
-	}
+	vk_check(vk.CreateInstance(&create_info, nil, &instance), "failed to create instance!")
 	vk.load_proc_addresses_instance(instance)
 
 	if vk.CreateDebugUtilsMessengerEXT != nil {
-		if vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger) != vk.Result.SUCCESS {
-			fmt.eprintln("failed to create debug messenger!")
-			return nil, false
-		}
+		vk_check(vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger), "failed to create debug messenger!")
 	}
 
-	return instance, true
+	return instance
 }
 
 
@@ -270,12 +277,12 @@ score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 }
 
 
-pick_physical_device :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (vk.PhysicalDevice, bool) {
+pick_physical_device :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> vk.PhysicalDevice {
 	dev_count: u32
 	vk.EnumeratePhysicalDevices(instance, &dev_count, nil)
 	if dev_count == 0 {
 		fmt.eprintln("failed to find GPUs with Vulkan support!")
-		return nil, false
+		os.exit(1)
 	}
 
 	physical_devices := make([]vk.PhysicalDevice, dev_count)
@@ -295,19 +302,19 @@ pick_physical_device :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (
 
 	if best_device == nil {
 		fmt.eprintln("failed to find a suitable GPU!")
-		return nil, false
+		os.exit(1)
 	}
 
 	fmt.printfln("Selected physical device (score=%d)", best_score)
-	return best_device, true
+	return best_device
 }
 
 
-create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> (vk.Device, vk.Queue, bool) {
+create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> (vk.Device, vk.Queue) {
 	queue_index, ok := find_queue_families(physical_device, {.GRAPHICS}, surface)
 	if !ok {
 		fmt.eprintfln("No graphics queue found on physical device.")
-		return nil, nil, false
+		os.exit(1)
 	}
 
 	queue_priority: f32 = 0.5
@@ -350,40 +357,33 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 	}
 
 	device: vk.Device
-	if vk.CreateDevice(physical_device, &create_info, nil, &device) != vk.Result.SUCCESS {
-		fmt.eprintln("Failed to create logical device!")
-		return nil, nil, false
-	}
+	vk_check(vk.CreateDevice(physical_device, &create_info, nil, &device), "Failed to create logical device!")
 
 	queue: vk.Queue
 	vk.GetDeviceQueue(device, queue_index, 0, &queue)
 
-	return device, queue, true
+	return device, queue
 }
 
 
-create_window :: proc() -> (glfw.WindowHandle, bool) {
+create_window :: proc() -> glfw.WindowHandle {
 	glfw.WindowHint(glfw.RESIZABLE, 0)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
 	window := glfw.CreateWindow(512, 512, "My first window", nil, nil)
 	if window == nil {
 		fmt.eprintln("Unable to create window")
-		return nil, false
+		os.exit(1)
 	}
-	return window, true
+	return window
 }
 
 
-create_surface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> (vk.SurfaceKHR, bool) {
+create_surface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> vk.SurfaceKHR {
 	surface: vk.SurfaceKHR
-	result := glfw.CreateWindowSurface(instance, window, nil, &surface)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create surface! VkResult=%v", result)
-		return 0, false
-	}
+	vk_check(glfw.CreateWindowSurface(instance, window, nil, &surface), "Failed to create surface!")
 
-	return surface, true
+	return surface
 }
 
 
@@ -463,13 +463,9 @@ choose_present_mode :: proc(present_modes: []vk.PresentModeKHR) -> vk.PresentMod
 }
 
 
-create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, surface: vk.SurfaceKHR, window: glfw.WindowHandle) -> (vk.SwapchainKHR, vk.Format, bool) {
+create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, surface: vk.SurfaceKHR, window: glfw.WindowHandle) -> (vk.SwapchainKHR, vk.Format) {
 	surface_capabilities: vk.SurfaceCapabilitiesKHR
-	result := vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create swap chain! VkResult=%v", result)
-		return 0, .UNDEFINED, false
-	}
+	vk_check(vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities), "Failed to get surface capabilities!")
 
 	swap_chain_extent := choose_swap_extent(surface_capabilities, window)
 	min_image_count := choose_swap_min_image_count(surface_capabilities)
@@ -497,17 +493,13 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 	}
 
 	swap_chain: vk.SwapchainKHR
-	result = vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create swap chain. VkResult=%v", result)
-		return 0, .UNDEFINED, false
-	}
+	vk_check(vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain), "Failed to create swap chain!")
 
-	return swap_chain, format.format, true
+	return swap_chain, format.format
 }
 
 
-create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> ([]vk.ImageView, bool) {
+create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> []vk.ImageView {
 
 	create_info := vk.ImageViewCreateInfo {
 		sType            = vk.StructureType.IMAGE_VIEW_CREATE_INFO,
@@ -522,14 +514,10 @@ create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_for
 		// Set the image, the rest of the struct stays the same for each image.
 		create_info.image = image
 
-		result := vk.CreateImageView(device, &create_info, nil, &image_views[i])
-		if result != .SUCCESS {
-			fmt.eprintfln("Failed to create image view. VkResult=%v", result)
-			return nil, false
-		}
+		vk_check(vk.CreateImageView(device, &create_info, nil, &image_views[i]), "Failed to create image view!")
 	}
 
-	return image_views, true
+	return image_views
 }
 
 get_swap_chain_images :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR) -> []vk.Image {
@@ -557,57 +545,27 @@ main :: proc() {
 	}
 
 	// Create Vulkan instance...
-	instance, ok := create_instance()
-	if !ok {
-		fmt.eprintln("Create instance failed.")
-		os.exit(1)
-	}
+	instance := create_instance()
 	fmt.println("Create instance... OK")
 
 	// Create window
-	window: glfw.WindowHandle
-	window, ok = create_window()
-	if !ok {
-		fmt.eprintln("Failed to create GLFW window.")
-		os.exit(1)
-	}
+	window := create_window()
 	fmt.println("Window... OK")
 
 	// Create surface
-	surface: vk.SurfaceKHR
-	surface, ok = create_surface(instance, window)
-	if !ok {
-		fmt.eprintln("Failed to create surface.")
-		os.exit(1)
-	}
+	surface := create_surface(instance, window)
 	fmt.println("Surface... OK")
 
 	// Pick physical device
-	physical_device: vk.PhysicalDevice
-	physical_device, ok = pick_physical_device(instance, surface)
-	if !ok {
-		fmt.eprintln("Compatible physical device not found.")
-		os.exit(1)
-	}
+	physical_device := pick_physical_device(instance, surface)
 	fmt.println("Physical device... OK")
 
 	// Create logical device
-	device: vk.Device
-	device, _, ok = create_logical_device(physical_device, surface)
-	if !ok {
-		fmt.eprintln("Failed to create logical device.")
-		os.exit(1)
-	}
+	device, _ := create_logical_device(physical_device, surface)
 	fmt.println("Logical device... OK")
 
 	// Create swap chain
-	swap_chain: vk.SwapchainKHR
-	swap_chain_format: vk.Format
-	swap_chain, swap_chain_format, ok = create_swap_chain(physical_device, device, surface, window)
-	if !ok {
-		fmt.eprintln("Failed to create swap chain.")
-		os.exit(1)
-	}
+	swap_chain, swap_chain_format := create_swap_chain(physical_device, device, surface, window)
 	fmt.println("Swap chain... OK")
 
 	// Get swap chain images
@@ -617,12 +575,7 @@ main :: proc() {
 
 
 	// Create image views
-	swap_chain_image_views: []vk.ImageView
-	swap_chain_image_views, ok = create_image_views(device, swap_chain_images, swap_chain_format)
-	if !ok {
-		fmt.eprintln("Failed to create swap chain images views.")
-		os.exit(1)
-	}
+	swap_chain_image_views := create_image_views(device, swap_chain_images, swap_chain_format)
 	fmt.println("Swap chain images views... OK")
 
 	fmt.println()

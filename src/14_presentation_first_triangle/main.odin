@@ -3,6 +3,7 @@ package main
 import "base:runtime"
 import "core:fmt"
 import "core:os"
+import "core:reflect"
 import "core:slice"
 import "core:strings"
 
@@ -23,6 +24,19 @@ g_required_extensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 
 // Manage the escape key exit.
 g_running: bool = true
+
+
+vk_check :: proc(result: vk.Result, operation: string, loc := #caller_location) {
+	if result == .SUCCESS {
+		return
+	}
+	p := context.assertion_failure_proc
+	when ODIN_DEBUG {
+		p(operation, reflect.enum_string(result), loc)
+	} else {
+		p(operation, "Vulkan operation failed", loc)
+	}
+}
 
 
 debug_callback :: proc "system" (
@@ -46,13 +60,13 @@ debug_callback :: proc "system" (
 }
 
 
-create_instance :: proc() -> (vk.Instance, bool) {
+create_instance :: proc() -> vk.Instance {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 	if !are_layers_supported(g_validation_layers) {
 		fmt.eprintln(
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
-		return nil, false
+		os.exit(1)
 	}
 
 	app_info := vk.ApplicationInfo {
@@ -89,21 +103,14 @@ create_instance :: proc() -> (vk.Instance, bool) {
 	}
 
 	instance: vk.Instance
-	result := vk.CreateInstance(&create_info, nil, &instance)
-	if result != vk.Result.SUCCESS {
-		fmt.eprintln("failed to create instance!")
-		return nil, false
-	}
+	vk_check(vk.CreateInstance(&create_info, nil, &instance), "failed to create instance!")
 	vk.load_proc_addresses_instance(instance)
 
 	if vk.CreateDebugUtilsMessengerEXT != nil {
-		if vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger) != vk.Result.SUCCESS {
-			fmt.eprintln("failed to create debug messenger!")
-			return nil, false
-		}
+		vk_check(vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger), "failed to create debug messenger!")
 	}
 
-	return instance, true
+	return instance
 }
 
 
@@ -279,12 +286,12 @@ score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 }
 
 
-pick_physical_device :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (vk.PhysicalDevice, bool) {
+pick_physical_device :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> vk.PhysicalDevice {
 	dev_count: u32
 	vk.EnumeratePhysicalDevices(instance, &dev_count, nil)
 	if dev_count == 0 {
 		fmt.eprintln("failed to find GPUs with Vulkan support!")
-		return nil, false
+		os.exit(1)
 	}
 
 	physical_devices := make([]vk.PhysicalDevice, dev_count)
@@ -304,19 +311,19 @@ pick_physical_device :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> (
 
 	if best_device == nil {
 		fmt.eprintln("failed to find a suitable GPU!")
-		return nil, false
+		os.exit(1)
 	}
 
 	fmt.printfln("Selected physical device (score=%d)", best_score)
-	return best_device, true
+	return best_device
 }
 
 
-create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> (vk.Device, vk.Queue, bool) {
+create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> (vk.Device, vk.Queue) {
 	queue_index, ok := find_queue_families(physical_device, {.GRAPHICS}, surface)
 	if !ok {
 		fmt.eprintfln("No graphics queue found on physical device.")
-		return nil, nil, false
+		os.exit(1)
 	}
 
 	queue_priority: f32 = 0.5
@@ -362,40 +369,33 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 	}
 
 	device: vk.Device
-	if vk.CreateDevice(physical_device, &create_info, nil, &device) != vk.Result.SUCCESS {
-		fmt.eprintln("Failed to create logical device!")
-		return nil, nil, false
-	}
+	vk_check(vk.CreateDevice(physical_device, &create_info, nil, &device), "Failed to create logical device!")
 
 	queue: vk.Queue
 	vk.GetDeviceQueue(device, queue_index, 0, &queue)
 
-	return device, queue, true
+	return device, queue
 }
 
 
-create_window :: proc() -> (glfw.WindowHandle, bool) {
+create_window :: proc() -> glfw.WindowHandle {
 	glfw.WindowHint(glfw.RESIZABLE, 0)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
 	window := glfw.CreateWindow(512, 512, "My first Vulkan Triangle", nil, nil)
 	if window == nil {
 		fmt.eprintln("Unable to create window")
-		return nil, false
+		os.exit(1)
 	}
-	return window, true
+	return window
 }
 
 
-create_surface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> (vk.SurfaceKHR, bool) {
+create_surface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> vk.SurfaceKHR {
 	surface: vk.SurfaceKHR
-	result := glfw.CreateWindowSurface(instance, window, nil, &surface)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create surface! VkResult=%v", result)
-		return 0, false
-	}
+	vk_check(glfw.CreateWindowSurface(instance, window, nil, &surface), "Failed to create surface!")
 
-	return surface, true
+	return surface
 }
 
 
@@ -475,23 +475,9 @@ choose_present_mode :: proc(present_modes: []vk.PresentModeKHR) -> vk.PresentMod
 }
 
 
-create_swap_chain :: proc(
-	physical_device: vk.PhysicalDevice,
-	device: vk.Device,
-	surface: vk.SurfaceKHR,
-	window: glfw.WindowHandle,
-) -> (
-	vk.SwapchainKHR,
-	vk.Extent2D,
-	vk.Format,
-	bool,
-) {
+create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, surface: vk.SurfaceKHR, window: glfw.WindowHandle) -> (vk.SwapchainKHR, vk.Extent2D, vk.Format) {
 	surface_capabilities: vk.SurfaceCapabilitiesKHR
-	result := vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create swap chain! VkResult=%v", result)
-		return 0, vk.Extent2D{}, .UNDEFINED, false
-	}
+	vk_check(vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities), "Failed to get surface capabilities!")
 
 	swap_chain_extent := choose_swap_extent(surface_capabilities, window)
 	min_image_count := choose_swap_min_image_count(surface_capabilities)
@@ -519,17 +505,13 @@ create_swap_chain :: proc(
 	}
 
 	swap_chain: vk.SwapchainKHR
-	result = vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create swap chain. VkResult=%v", result)
-		return 0, vk.Extent2D{}, .UNDEFINED, false
-	}
+	vk_check(vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain), "Failed to create swap chain!")
 
-	return swap_chain, swap_chain_extent, format.format, true
+	return swap_chain, swap_chain_extent, format.format
 }
 
 
-create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> ([]vk.ImageView, bool) {
+create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> []vk.ImageView {
 
 	create_info := vk.ImageViewCreateInfo {
 		sType            = vk.StructureType.IMAGE_VIEW_CREATE_INFO,
@@ -544,14 +526,10 @@ create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_for
 		// Set the image, the rest of the struct stays the same for each image.
 		create_info.image = image
 
-		result := vk.CreateImageView(device, &create_info, nil, &image_views[i])
-		if result != .SUCCESS {
-			fmt.eprintfln("Failed to create image view. VkResult=%v", result)
-			return nil, false
-		}
+		vk_check(vk.CreateImageView(device, &create_info, nil, &image_views[i]), "Failed to create image view!")
 	}
 
-	return image_views, true
+	return image_views
 }
 
 get_swap_chain_images :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR) -> []vk.Image {
@@ -568,11 +546,11 @@ get_swap_chain_images :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR) ->
 	return images
 }
 
-create_shader_module :: proc(device: vk.Device, slang_path: string, entry_points: []string) -> (vk.ShaderModule, bool) {
+create_shader_module :: proc(device: vk.Device, slang_path: string, entry_points: []string) -> vk.ShaderModule {
 	spv, ok := compile_slang_shader(slang_path, entry_points)
 	if !ok {
 		fmt.eprintln("Shader compilation failed.")
-		return 0, false
+		os.exit(1)
 	}
 	defer delete(spv)
 
@@ -583,13 +561,9 @@ create_shader_module :: proc(device: vk.Device, slang_path: string, entry_points
 	}
 
 	shader_module: vk.ShaderModule
-	result := vk.CreateShaderModule(device, &create_info, nil, &shader_module)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create shader module. VkResult=%v", result)
-		return 0, false
-	}
+	vk_check(vk.CreateShaderModule(device, &create_info, nil, &shader_module), "Failed to create shader module!")
 
-	return shader_module, true
+	return shader_module
 
 }
 
@@ -602,7 +576,6 @@ create_graphics_pipeline :: proc(
 ) -> (
 	vk.Pipeline,
 	vk.PipelineLayout,
-	bool,
 ) {
 
 	// -----------------------------------
@@ -736,12 +709,7 @@ create_graphics_pipeline :: proc(
 	}
 
 	pipeline_layout: vk.PipelineLayout
-	result := vk.CreatePipelineLayout(device, &pipeline_layout_create_info, nil, &pipeline_layout)
-
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create pipeline layout. VkResult=%v", result)
-		return 0, 0, false
-	}
+	vk_check(vk.CreatePipelineLayout(device, &pipeline_layout_create_info, nil, &pipeline_layout), "Failed to create pipeline layout!")
 
 	// -----------------------------------
 	// Pipeline Rendering Create Info
@@ -774,22 +742,18 @@ create_graphics_pipeline :: proc(
 	}
 
 	graphics_pipeline: vk.Pipeline
-	result = vk.CreateGraphicsPipelines(device, 0, 1, &pipeline_create_info, nil, &graphics_pipeline)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create graphics pipeline. VkResult=%v", result)
-		return 0, 0, false
-	}
+	vk_check(vk.CreateGraphicsPipelines(device, 0, 1, &pipeline_create_info, nil, &graphics_pipeline), "Failed to create graphics pipeline!")
 
-	return graphics_pipeline, pipeline_layout, true
+	return graphics_pipeline, pipeline_layout
 
 }
 
-create_command_pool :: proc(device: vk.Device, physical_device: vk.PhysicalDevice) -> (vk.CommandPool, bool) {
+create_command_pool :: proc(device: vk.Device, physical_device: vk.PhysicalDevice) -> vk.CommandPool {
 
 	queue_index, ok := find_queue_families(physical_device, {.GRAPHICS}, 0)
 	if !ok {
 		fmt.eprintfln("Impossible to find queue index for graphics.")
-		return 0, false
+		os.exit(1)
 	}
 	command_pool_create_info := vk.CommandPoolCreateInfo {
 		sType            = vk.StructureType.COMMAND_POOL_CREATE_INFO,
@@ -798,16 +762,12 @@ create_command_pool :: proc(device: vk.Device, physical_device: vk.PhysicalDevic
 	}
 
 	command_pool: vk.CommandPool
-	result := vk.CreateCommandPool(device, &command_pool_create_info, nil, &command_pool)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create command pool. VkResult=%v", result)
-		return 0, false
-	}
+	vk_check(vk.CreateCommandPool(device, &command_pool_create_info, nil, &command_pool), "Failed to create command pool!")
 
-	return command_pool, true
+	return command_pool
 }
 
-create_command_buffer :: proc(device: vk.Device, command_pool: vk.CommandPool) -> (vk.CommandBuffer, bool) {
+create_command_buffer :: proc(device: vk.Device, command_pool: vk.CommandPool) -> vk.CommandBuffer {
 	alloc_info := vk.CommandBufferAllocateInfo {
 		sType              = vk.StructureType.COMMAND_BUFFER_ALLOCATE_INFO,
 		commandPool        = command_pool,
@@ -821,26 +781,20 @@ create_command_buffer :: proc(device: vk.Device, command_pool: vk.CommandPool) -
 	result := vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers))
 	if result != .SUCCESS {
 		fmt.eprintfln("Failed to create command buffer. VkResult=%v", result)
-		return nil, false
+		os.exit(1)
 	}
 
-	return command_buffers[0], true
+	return command_buffers[0]
 }
 
-begin_command_buffer :: proc(command_buffer: vk.CommandBuffer) -> bool {
+begin_command_buffer :: proc(command_buffer: vk.CommandBuffer) {
 	begin_info := vk.CommandBufferBeginInfo {
 		sType            = vk.StructureType.COMMAND_BUFFER_BEGIN_INFO,
 		flags            = {},
 		pInheritanceInfo = nil,
 	}
 
-	result := vk.BeginCommandBuffer(command_buffer, &begin_info)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to begin command buffer. VkResult=%v", result)
-		return false
-	}
-
-	return true
+	vk_check(vk.BeginCommandBuffer(command_buffer, &begin_info), "Failed to begin command buffer!")
 }
 
 transition_image_layout :: proc(
@@ -929,28 +883,14 @@ end_rendering :: proc(command_buffer: vk.CommandBuffer) {
 }
 
 
-end_command_buffer :: proc(command_buffer: vk.CommandBuffer) -> bool {
-	result := vk.EndCommandBuffer(command_buffer)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to end command buffer. VkResult=%v", result)
-		return false
-	}
-
-	return true
+end_command_buffer :: proc(command_buffer: vk.CommandBuffer) {
+	vk_check(vk.EndCommandBuffer(command_buffer), "Failed to end command buffer!")
 }
 
-record_command_buffer :: proc(
-	command_buffer: vk.CommandBuffer,
-	image: vk.Image,
-	image_view: vk.ImageView,
-	swap_chain_extent: vk.Extent2D,
-	graphics_pipeline: vk.Pipeline,
-) -> bool {
+record_command_buffer :: proc(command_buffer: vk.CommandBuffer, image: vk.Image, image_view: vk.ImageView, swap_chain_extent: vk.Extent2D, graphics_pipeline: vk.Pipeline) {
 
 	// Begin to start the recording...
-	if !begin_command_buffer(command_buffer) {
-		return false
-	}
+	begin_command_buffer(command_buffer)
 
 	// Transfert the image to ColorAttachmentOptimal
 	transition_image_layout(
@@ -995,14 +935,11 @@ record_command_buffer :: proc(
 	)
 
 	// And we're done recording.
-	if !end_command_buffer(command_buffer) {
-		return false
-	}
+	end_command_buffer(command_buffer)
 
-	return true
 }
 
-create_semaphore :: proc(device: vk.Device) -> (vk.Semaphore, bool) {
+create_semaphore :: proc(device: vk.Device) -> vk.Semaphore {
 
 	semaphore_create_info := vk.SemaphoreCreateInfo {
 		sType = vk.StructureType.SEMAPHORE_CREATE_INFO,
@@ -1010,17 +947,13 @@ create_semaphore :: proc(device: vk.Device) -> (vk.Semaphore, bool) {
 	}
 
 	semaphore: vk.Semaphore
-	result := vk.CreateSemaphore(device, &semaphore_create_info, nil, &semaphore)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create a semaphore. VkResult=%v", result)
-		return 0, false
-	}
+	vk_check(vk.CreateSemaphore(device, &semaphore_create_info, nil, &semaphore), "Failed to create a semaphore!")
 
-	return semaphore, true
+	return semaphore
 
 }
 
-create_fence :: proc(device: vk.Device) -> (vk.Fence, bool) {
+create_fence :: proc(device: vk.Device) -> vk.Fence {
 
 	fence_create_info := vk.FenceCreateInfo {
 		sType = vk.StructureType.FENCE_CREATE_INFO,
@@ -1028,51 +961,29 @@ create_fence :: proc(device: vk.Device) -> (vk.Fence, bool) {
 	}
 
 	fence: vk.Fence
-	result := vk.CreateFence(device, &fence_create_info, nil, &fence)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create a fence. VkResult=%v", result)
-		return 0, false
-	}
+	vk_check(vk.CreateFence(device, &fence_create_info, nil, &fence), "Failed to create a fence!")
 
-	return fence, true
+	return fence
 
 }
 
-wait_for_fence :: proc(device: vk.Device, fence: vk.Fence) -> bool {
+wait_for_fence :: proc(device: vk.Device, fence: vk.Fence) {
 	local_fence := fence
-	result := vk.WaitForFences(device, 1, &local_fence, true, max(u64))
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to wait for fence. VkResult=%v", result)
-		return false
-	}
-
-	return true
+	vk_check(vk.WaitForFences(device, 1, &local_fence, true, max(u64)), "Failed to wait for fence!")
 }
 
-reset_fence :: proc(device: vk.Device, fence: vk.Fence) -> bool {
+reset_fence :: proc(device: vk.Device, fence: vk.Fence) {
 	local_fence := fence
-	result := vk.ResetFences(device, 1, &local_fence)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to reset fence. VkResult=%v", result)
-		return false
-	}
-
-	return true
+	vk_check(vk.ResetFences(device, 1, &local_fence), "Failed to reset fence!")
 }
 
-acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_fence: vk.Fence, acquire_semaphore: vk.Semaphore) -> (u32, bool) {
+acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_fence: vk.Fence, acquire_semaphore: vk.Semaphore) -> u32 {
 
 	// Wait until last frame is not done rendering.
-	if !wait_for_fence(device, draw_fence) {
-		fmt.eprintfln("Failed to wait for draw fence.")
-		return 0, false
-	}
+	wait_for_fence(device, draw_fence)
 
 	// We need to manually reset the fence to the unsignaled state because a fence do not automatically reset.
-	if !reset_fence(device, draw_fence) {
-		fmt.eprintfln("Failed to reset draw fence.")
-		return 0, false
-	}
+	reset_fence(device, draw_fence)
 
 	// Acquire next image.
 	swapchain_image_index: u32
@@ -1082,11 +993,10 @@ acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_
 	// - VK_SUBOPTIMAL_KHR: A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully.
 	// - VK_ERROR_OUT_OF_DATE_KHR: (usually when the window is resized) A surface has changed in such a way that it is no longer compatible with the swapchain, and further presentation requests using the swapchain will fail. Applications must query the new surface properties and recreate their swapchain if they wish to continue presenting to the surface.
 	if result != .SUCCESS && result != .SUBOPTIMAL_KHR && result != .ERROR_OUT_OF_DATE_KHR {
-		fmt.eprintfln("Failed to acquire next image. VkResult=%v", result)
-		return 0, false
+		vk_check(result, "Failed to acquire next image!")
 	}
 
-	return swapchain_image_index, true
+	return swapchain_image_index
 
 }
 
@@ -1097,7 +1007,7 @@ submit_command_buffer :: proc(
 	acquire_semaphore: vk.Semaphore,
 	render_finish_semaphore: vk.Semaphore,
 	graphics_queue: vk.Queue,
-) -> bool {
+) {
 
 	local_acquire_semaphore := acquire_semaphore
 	wait_dest_stages := vk.PipelineStageFlags{.COLOR_ATTACHMENT_OUTPUT}
@@ -1116,16 +1026,10 @@ submit_command_buffer :: proc(
 		pSignalSemaphores    = &local_render_finish_semaphore,
 	}
 
-	result := vk.QueueSubmit(graphics_queue, 1, &submit_info, draw_fence)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to submit command buffer. VkResult=%v", result)
-		return false
-	}
-
-	return true
+	vk_check(vk.QueueSubmit(graphics_queue, 1, &submit_info, draw_fence), "Failed to submit command buffer!")
 }
 
-queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_finish_semaphore: vk.Semaphore, graphics_queue: vk.Queue, swapchain_image_index: u32) -> bool {
+queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_finish_semaphore: vk.Semaphore, graphics_queue: vk.Queue, swapchain_image_index: u32) {
 	local_swap_chain := swap_chain
 	local_render_finish_semaphore := render_finish_semaphore
 	local_swapchain_image_index := swapchain_image_index
@@ -1139,13 +1043,7 @@ queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_fin
 		pImageIndices      = &local_swapchain_image_index,
 	}
 
-	result := vk.QueuePresentKHR(graphics_queue, &present_info)
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to queue to presentation. VkResult=%v", result)
-		return false
-	}
-
-	return true
+	vk_check(vk.QueuePresentKHR(graphics_queue, &present_info), "Failed to queue to presentation!")
 }
 
 
@@ -1164,59 +1062,27 @@ main :: proc() {
 	}
 
 	// Create Vulkan instance...
-	instance, ok := create_instance()
-	if !ok {
-		fmt.eprintln("Create instance failed.")
-		os.exit(1)
-	}
+	instance := create_instance()
 	fmt.println("Create instance... OK")
 
 	// Create window
-	window: glfw.WindowHandle
-	window, ok = create_window()
-	if !ok {
-		fmt.eprintln("Failed to create GLFW window.")
-		os.exit(1)
-	}
+	window := create_window()
 	fmt.println("Window... OK")
 
 	// Create surface
-	surface: vk.SurfaceKHR
-	surface, ok = create_surface(instance, window)
-	if !ok {
-		fmt.eprintln("Failed to create surface.")
-		os.exit(1)
-	}
+	surface := create_surface(instance, window)
 	fmt.println("Surface... OK")
 
 	// Pick physical device
-	physical_device: vk.PhysicalDevice
-	physical_device, ok = pick_physical_device(instance, surface)
-	if !ok {
-		fmt.eprintln("Compatible physical device not found.")
-		os.exit(1)
-	}
+	physical_device := pick_physical_device(instance, surface)
 	fmt.println("Physical device... OK")
 
 	// Create logical device
-	device: vk.Device
-	graphics_queue: vk.Queue
-	device, graphics_queue, ok = create_logical_device(physical_device, surface)
-	if !ok {
-		fmt.eprintln("Failed to create logical device.")
-		os.exit(1)
-	}
+	device, graphics_queue := create_logical_device(physical_device, surface)
 	fmt.println("Logical device... OK")
 
 	// Create swap chain
-	swap_chain: vk.SwapchainKHR
-	swap_chain_extent: vk.Extent2D
-	swap_chain_format: vk.Format
-	swap_chain, swap_chain_extent, swap_chain_format, ok = create_swap_chain(physical_device, device, surface, window)
-	if !ok {
-		fmt.eprintln("Failed to create swap chain.")
-		os.exit(1)
-	}
+	swap_chain, swap_chain_extent, swap_chain_format := create_swap_chain(physical_device, device, surface, window)
 	fmt.println("Swap chain... OK")
 
 	// Get swap chain images
@@ -1224,64 +1090,28 @@ main :: proc() {
 	defer delete(swap_chain_images)
 	fmt.printfln("Swap chain images [%d]... OK", len(swap_chain_images))
 
-
 	// Create image views
-	swap_chain_image_views: []vk.ImageView
-	swap_chain_image_views, ok = create_image_views(device, swap_chain_images, swap_chain_format)
-	if !ok {
-		fmt.eprintln("Failed to create swap chain images views.")
-		os.exit(1)
-	}
+	swap_chain_image_views := create_image_views(device, swap_chain_images, swap_chain_format)
 	fmt.println("Swap chain images views... OK")
 
-
 	// Create shader module
-	shader_module: vk.ShaderModule
-	shader_module, ok = create_shader_module(device, "shader.slang", {"vertMain", "fragMain"})
-	if !ok {
-		fmt.eprintln("Failed to create shader module.")
-		os.exit(1)
-	}
+	shader_module := create_shader_module(device, "shader.slang", {"vertMain", "fragMain"})
 	fmt.println("Shader module... OK")
 
-
 	// Create graphics pipeline
-	graphics_pipeline: vk.Pipeline
-	pipeline_layout: vk.PipelineLayout
-	graphics_pipeline, pipeline_layout, ok = create_graphics_pipeline(device, shader_module, "vertMain", "fragMain", swap_chain_format)
-	if !ok {
-		fmt.eprintln("Failed to create graphics pipeline.")
-		os.exit(1)
-	}
+	graphics_pipeline, pipeline_layout := create_graphics_pipeline(device, shader_module, "vertMain", "fragMain", swap_chain_format)
 	fmt.println("Graphics pipeline... OK")
 
-
 	// Command pool
-	command_pool: vk.CommandPool
-	command_pool, ok = create_command_pool(device, physical_device)
-	if !ok {
-		fmt.eprintln("Failed to create command pool.")
-		os.exit(1)
-	}
+	command_pool := create_command_pool(device, physical_device)
 	fmt.println("Command pool... OK")
 
-
 	// Command buffer
-	command_buffer: vk.CommandBuffer
-	command_buffer, ok = create_command_buffer(device, command_pool)
-	if !ok {
-		fmt.eprintln("Failed to create command buffer.")
-		os.exit(1)
-	}
+	command_buffer := create_command_buffer(device, command_pool)
 	fmt.println("Command buffer... OK")
 
 	// Semaphore to signal that an image has been acquired from the swapchain and is ready for rendering
-	acquire_semaphore: vk.Semaphore
-	acquire_semaphore, ok = create_semaphore(device)
-	if !ok {
-		fmt.eprintln("Failed to create acquire semaphore.")
-		os.exit(1)
-	}
+	acquire_semaphore := create_semaphore(device)
 	fmt.println("Acquire complete semaphore... OK")
 
 	// Semaphores that are waited on by QueuePresent are buffered based on the number of swapchain images
@@ -1291,21 +1121,12 @@ main :: proc() {
 	submit_semaphores := make([]vk.Semaphore, len(swap_chain_images))
 	defer delete(submit_semaphores)
 	for i in 0 ..< len(submit_semaphores) {
-		submit_semaphores[i], ok = create_semaphore(device)
-		if !ok {
-			fmt.eprintln("Failed to create submit semaphore.")
-			os.exit(1)
-		}
+		submit_semaphores[i] = create_semaphore(device)
 	}
 	fmt.printfln("Submit finish semaphores (%d)... OK", len(submit_semaphores))
 
 	// Fence to make sure only one frame is rendered at a time
-	draw_fence: vk.Fence
-	draw_fence, ok = create_fence(device)
-	if !ok {
-		fmt.eprintln("Failed to create draw fence.")
-		os.exit(1)
-	}
+	draw_fence := create_fence(device)
 	fmt.println("Draw fence... OK")
 
 
@@ -1325,33 +1146,16 @@ main :: proc() {
 		glfw.PollEvents()
 
 		//Acquire next image.
-		swap_chain_image_index: u32
-		swap_chain_image_index, ok = acquire_next_image(device, swap_chain, draw_fence, acquire_semaphore)
-		if !ok {
-			fmt.eprintln("Failed to acquire next image.")
-			os.exit(1)
-		}
+		swap_chain_image_index := acquire_next_image(device, swap_chain, draw_fence, acquire_semaphore)
 
 		// Record command bufffer
-		ok = record_command_buffer(command_buffer, swap_chain_images[swap_chain_image_index], swap_chain_image_views[swap_chain_image_index], swap_chain_extent, graphics_pipeline)
-		if !ok {
-			fmt.eprintln("Failed to record commands into buffer.")
-			os.exit(1)
-		}
+		record_command_buffer(command_buffer, swap_chain_images[swap_chain_image_index], swap_chain_image_views[swap_chain_image_index], swap_chain_extent, graphics_pipeline)
 
 		// Submit the command buffer to the graphics queue
-		ok = submit_command_buffer(device, command_buffer, draw_fence, acquire_semaphore, submit_semaphores[swap_chain_image_index], graphics_queue)
-		if !ok {
-			fmt.eprintln("Failed to submit command buffer.")
-			os.exit(1)
-		}
+		submit_command_buffer(device, command_buffer, draw_fence, acquire_semaphore, submit_semaphores[swap_chain_image_index], graphics_queue)
 
 		// Present the image to the user
-		ok = queue_present(device, swap_chain, submit_semaphores[swap_chain_image_index], graphics_queue, swap_chain_image_index)
-		if !ok {
-			fmt.eprintln("Failed to queue present.")
-			os.exit(1)
-		}
+		queue_present(device, swap_chain, submit_semaphores[swap_chain_image_index], graphics_queue, swap_chain_image_index)
 	}
 
 	// Prevent error fence is currently in use.

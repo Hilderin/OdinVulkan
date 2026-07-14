@@ -3,6 +3,7 @@ package main
 import "base:runtime"
 import "core:fmt"
 import "core:os"
+import "core:reflect"
 
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -21,6 +22,19 @@ g_required_extensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 
 // Manage the escape key exit.
 g_running: bool = true
+
+
+vk_check :: proc(result: vk.Result, operation: string, loc := #caller_location) {
+	if result == .SUCCESS {
+		return
+	}
+	p := context.assertion_failure_proc
+	when ODIN_DEBUG {
+		p(operation, reflect.enum_string(result), loc)
+	} else {
+		p(operation, "Vulkan operation failed", loc)
+	}
+}
 
 
 debug_callback :: proc "system" (
@@ -44,13 +58,13 @@ debug_callback :: proc "system" (
 }
 
 
-create_instance :: proc() -> (vk.Instance, bool) {
+create_instance :: proc() -> vk.Instance {
 	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
 	if !are_layers_supported(g_validation_layers) {
 		fmt.eprintln(
 			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
 		)
-		return nil, false
+		os.exit(1)
 	}
 
 	app_info := vk.ApplicationInfo {
@@ -87,21 +101,14 @@ create_instance :: proc() -> (vk.Instance, bool) {
 	}
 
 	instance: vk.Instance
-	result := vk.CreateInstance(&create_info, nil, &instance)
-	if result != vk.Result.SUCCESS {
-		fmt.eprintln("failed to create instance!")
-		return nil, false
-	}
+	vk_check(vk.CreateInstance(&create_info, nil, &instance), "failed to create instance!")
 	vk.load_proc_addresses_instance(instance)
 
 	if vk.CreateDebugUtilsMessengerEXT != nil {
-		if vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger) != vk.Result.SUCCESS {
-			fmt.eprintln("failed to create debug messenger!")
-			return nil, false
-		}
+		vk_check(vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &g_debug_messenger), "failed to create debug messenger!")
 	}
 
-	return instance, true
+	return instance
 }
 
 
@@ -257,12 +264,12 @@ score_device :: proc(device: vk.PhysicalDevice) -> int {
 }
 
 
-pick_physical_device :: proc(instance: vk.Instance) -> (vk.PhysicalDevice, bool) {
+pick_physical_device :: proc(instance: vk.Instance) -> vk.PhysicalDevice {
 	dev_count: u32
 	vk.EnumeratePhysicalDevices(instance, &dev_count, nil)
 	if dev_count == 0 {
 		fmt.eprintln("failed to find GPUs with Vulkan support!")
-		return nil, false
+		os.exit(1)
 	}
 
 	physical_devices := make([]vk.PhysicalDevice, dev_count)
@@ -282,19 +289,19 @@ pick_physical_device :: proc(instance: vk.Instance) -> (vk.PhysicalDevice, bool)
 
 	if best_device == nil {
 		fmt.eprintln("failed to find a suitable GPU!")
-		return nil, false
+		os.exit(1)
 	}
 
 	fmt.printfln("Selected physical device (score=%d)", best_score)
-	return best_device, true
+	return best_device
 }
 
 
-create_logical_device :: proc(physical_device: vk.PhysicalDevice) -> (vk.Device, vk.Queue, bool) {
+create_logical_device :: proc(physical_device: vk.PhysicalDevice) -> (vk.Device, vk.Queue) {
 	queue_index, ok := find_queue_families(physical_device, {.GRAPHICS})
 	if !ok {
 		fmt.eprintfln("No graphics queue found on physical device.")
-		return nil, nil, false
+		os.exit(1)
 	}
 
 	queue_priority: f32 = 0.5
@@ -337,19 +344,16 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice) -> (vk.Device,
 	}
 
 	device: vk.Device
-	if vk.CreateDevice(physical_device, &create_info, nil, &device) != vk.Result.SUCCESS {
-		fmt.eprintln("Failed to create logical device!")
-		return nil, nil, false
-	}
+	vk_check(vk.CreateDevice(physical_device, &create_info, nil, &device), "Failed to create logical device!")
 
 	queue: vk.Queue
 	vk.GetDeviceQueue(device, queue_index, 0, &queue)
 
-	return device, queue, true
+	return device, queue
 }
 
 
-create_window :: proc() -> (glfw.WindowHandle, bool) {
+create_window :: proc() -> glfw.WindowHandle {
 	// By default, GLFW initializes OpenGL, we don't want that, we just need a window.
 	// Note: these lines must be executed after the glfw.init() otherwise they are ignored.
 	glfw.WindowHint(glfw.RESIZABLE, 0)
@@ -358,9 +362,9 @@ create_window :: proc() -> (glfw.WindowHandle, bool) {
 	window := glfw.CreateWindow(512, 512, "My first window", nil, nil)
 	if window == nil {
 		fmt.eprintln("Unable to create window")
-		return nil, false
+		os.exit(1)
 	}
-	return window, true
+	return window
 }
 
 main :: proc() {
@@ -374,38 +378,19 @@ main :: proc() {
 	}
 
 	// Create Vulkan instance...
-	instance, ok := create_instance()
-	if !ok {
-		fmt.eprintln("Create instance failed.")
-		os.exit(1)
-	}
+	instance := create_instance()
 	fmt.println("Create instance... OK")
 
 	// Create window
-	window: glfw.WindowHandle
-	window, ok = create_window()
-	if !ok {
-		fmt.eprintln("Failed to create GLFW window.")
-		os.exit(1)
-	}
+	window := create_window()
 	fmt.println("Window... OK")
 
 	// Pick physical device
-	physical_device: vk.PhysicalDevice
-	physical_device, ok = pick_physical_device(instance)
-	if !ok {
-		fmt.eprintln("Compatible physical device not found.")
-		os.exit(1)
-	}
+	physical_device := pick_physical_device(instance)
 	fmt.println("Physical device... OK")
 
 	// Create logical device
-	device: vk.Device
-	device, _, ok = create_logical_device(physical_device)
-	if !ok {
-		fmt.eprintln("Failed to create logical device.")
-		os.exit(1)
-	}
+	device, _ := create_logical_device(physical_device)
 	fmt.println("Logical device... OK")
 
 	fmt.println()

@@ -2,12 +2,24 @@ package main
 
 import "base:runtime"
 import "core:fmt"
+import "core:mem"
 import "core:os"
 import "core:slice"
 import "core:strings"
 
 import "vendor:glfw"
 import vk "vendor:vulkan"
+
+
+// Important aliases for math types
+vec2 :: [2]f32
+vec3 :: [3]f32
+
+// Vertex attributes
+Vertex :: struct {
+	pos:   vec2,
+	color: vec3,
+}
 
 // Number of frames in flight
 NB_FRAMES_IN_FLIGHT :: 2
@@ -26,6 +38,9 @@ g_required_extensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 
 // Manage the escape key exit.
 g_running: bool = true
+
+// Manage the window resize callback
+g_framebuffer_resized: bool = false
 
 
 debug_callback :: proc "system" (
@@ -378,7 +393,7 @@ create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.Su
 
 
 create_window :: proc() -> (glfw.WindowHandle, bool) {
-	glfw.WindowHint(glfw.RESIZABLE, 0)
+	glfw.WindowHint(glfw.RESIZABLE, 1)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
 	window := glfw.CreateWindow(512, 512, "My first Vulkan Triangle", nil, nil)
@@ -633,14 +648,24 @@ create_graphics_pipeline :: proc(
 
 	// -----------------------------------
 	// Vertex input
+	// Configure que format of the buffer where the vertices are stored.
+	binding_description := vk.VertexInputBindingDescription{}
+	binding_description.binding = 0
+	binding_description.stride = size_of(Vertex)
+	binding_description.inputRate = .VERTEX
+
 	// Configure the data format of vertices
-	// Because we're hard coding the vertex data directly in the vertex shader, we'll fill in this structure to specify that there is no vertex data to load for now. We'll get back to it in the vertex buffer chapter.
+	vertex_attributes_description := []vk.VertexInputAttributeDescription {
+		{binding = 0, location = 0, format = .R32G32_SFLOAT, offset = u32(offset_of(Vertex, pos))},
+		{binding = 0, location = 1, format = .R32G32B32_SFLOAT, offset = u32(offset_of(Vertex, color))},
+	}
+
 	vertex_input_create_info := vk.PipelineVertexInputStateCreateInfo {
 		sType                           = vk.StructureType.PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-		vertexBindingDescriptionCount   = 0,
-		pVertexBindingDescriptions      = nil,
-		vertexAttributeDescriptionCount = 0,
-		pVertexAttributeDescriptions    = nil,
+		vertexBindingDescriptionCount   = 1,
+		pVertexBindingDescriptions      = &binding_description,
+		vertexAttributeDescriptionCount = u32(len(vertex_attributes_description)),
+		pVertexAttributeDescriptions    = raw_data(vertex_attributes_description),
 	}
 
 	// -----------------------------------
@@ -945,6 +970,7 @@ record_command_buffer :: proc(
 	image_view: vk.ImageView,
 	swap_chain_extent: vk.Extent2D,
 	graphics_pipeline: vk.Pipeline,
+	vertex_buffer: vk.Buffer,
 ) -> bool {
 
 	// Begin to start the recording...
@@ -976,7 +1002,12 @@ record_command_buffer :: proc(
 	// Set scissor
 	set_scissor(command_buffer, swap_chain_extent)
 
-	// Draw 3 vertices
+	// Bind vertex buffer to binding 0
+	offsets := vk.DeviceSize(0)
+	local_vertex_buffer := vertex_buffer
+	vk.CmdBindVertexBuffers(command_buffer, 0, 1, &local_vertex_buffer, &offsets)
+
+	// Draw vertices from vertex buffer
 	vk.CmdDraw(command_buffer, 3, 1, 0, 0)
 
 	// End the rendering
@@ -1089,33 +1120,36 @@ reset_fence :: proc(device: vk.Device, fence: vk.Fence) -> bool {
 	return true
 }
 
-acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_fence: vk.Fence, acquire_semaphore: vk.Semaphore) -> (u32, bool) {
+acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_fence: vk.Fence, acquire_semaphore: vk.Semaphore) -> (u32, bool, bool) {
 
 	// Wait until last frame is not done rendering.
 	if !wait_for_fence(device, draw_fence) {
 		fmt.eprintfln("Failed to wait for draw fence.")
-		return 0, false
+		return 0, false, false
 	}
 
-	// We need to manually reset the fence to the unsignaled state because a fence do not automatically reset.
-	if !reset_fence(device, draw_fence) {
-		fmt.eprintfln("Failed to reset draw fence.")
-		return 0, false
-	}
 
 	// Acquire next image.
 	swapchain_image_index: u32
 	result := vk.AcquireNextImageKHR(device, swap_chain, max(u64), acquire_semaphore, 0, &swapchain_image_index)
 
-	// Some result are not really problematic:
+	// Specials result sfrom AcquireNextImageKHR:
 	// - VK_SUBOPTIMAL_KHR: A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully.
 	// - VK_ERROR_OUT_OF_DATE_KHR: (usually when the window is resized) A surface has changed in such a way that it is no longer compatible with the swapchain, and further presentation requests using the swapchain will fail. Applications must query the new surface properties and recreate their swapchain if they wish to continue presenting to the surface.
-	if result != .SUCCESS && result != .SUBOPTIMAL_KHR && result != .ERROR_OUT_OF_DATE_KHR {
+	if result == .SUBOPTIMAL_KHR || result == .ERROR_OUT_OF_DATE_KHR {
+		return swapchain_image_index, true, true
+	} else if result != .SUCCESS {
 		fmt.eprintfln("Failed to acquire next image. VkResult=%v", result)
-		return 0, false
+		return 0, false, false
 	}
 
-	return swapchain_image_index, true
+	// We need to manually reset the fence to the unsignaled state because a fence do not automatically reset.
+	if !reset_fence(device, draw_fence) {
+		fmt.eprintfln("Failed to reset draw fence.")
+		return 0, false, false
+	}
+
+	return swapchain_image_index, false, true
 
 }
 
@@ -1154,7 +1188,16 @@ submit_command_buffer :: proc(
 	return true
 }
 
-queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_finish_semaphore: vk.Semaphore, graphics_queue: vk.Queue, swapchain_image_index: u32) -> bool {
+queue_present :: proc(
+	device: vk.Device,
+	swap_chain: vk.SwapchainKHR,
+	render_finish_semaphore: vk.Semaphore,
+	graphics_queue: vk.Queue,
+	swapchain_image_index: u32,
+) -> (
+	bool,
+	bool,
+) {
 	local_swap_chain := swap_chain
 	local_render_finish_semaphore := render_finish_semaphore
 	local_swapchain_image_index := swapchain_image_index
@@ -1169,17 +1212,135 @@ queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_fin
 	}
 
 	result := vk.QueuePresentKHR(graphics_queue, &present_info)
+	if result == .SUBOPTIMAL_KHR || result == .ERROR_OUT_OF_DATE_KHR {
+		return true, true
+	}
 	if result != .SUCCESS {
 		fmt.eprintfln("Failed to queue to presentation. VkResult=%v", result)
-		return false
+		return false, false
 	}
 
-	return true
+	return false, true
 }
 
 
 wait_idle_device :: proc(device: vk.Device) {
 	vk.DeviceWaitIdle(device)
+}
+
+destroy_swap_chain :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR) {
+	if swap_chain != 0 {
+		vk.DestroySwapchainKHR(device, swap_chain, nil)
+	}
+}
+
+destroy_swap_chain_images :: proc(device: vk.Device, swap_chain_images: []vk.Image) {
+	if swap_chain_images != nil {
+		delete(swap_chain_images)
+	}
+}
+
+destroy_swap_chain_image_views :: proc(device: vk.Device, swap_chain_image_views: []vk.ImageView) {
+	if swap_chain_image_views != nil {
+		for image_view in swap_chain_image_views {
+			vk.DestroyImageView(device, image_view, nil)
+		}
+		delete(swap_chain_image_views)
+	}
+}
+
+create_buffer :: proc(device: vk.Device, size: u64, usage: vk.BufferUsageFlags) -> (vk.Buffer, bool) {
+
+	buffer_info := vk.BufferCreateInfo {
+		sType       = vk.StructureType.BUFFER_CREATE_INFO,
+		size        = vk.DeviceSize(size),
+		usage       = usage,
+		sharingMode = .EXCLUSIVE,
+	}
+
+	buffer: vk.Buffer
+	result := vk.CreateBuffer(device, &buffer_info, nil, &buffer)
+	if result != .SUCCESS {
+		fmt.eprintfln("Failed to create buffer. VkResult=%v", result)
+		return 0, false
+	}
+
+	return buffer, true
+
+}
+
+create_vertex_buffer :: proc(device: vk.Device, size: u64) -> (vk.Buffer, bool) {
+
+	return create_buffer(device, size, {.VERTEX_BUFFER})
+}
+
+find_memory_type :: proc(physical_device: vk.PhysicalDevice, type_filter: u32, properties: vk.MemoryPropertyFlags) -> (u32, bool) {
+	mem_properties: vk.PhysicalDeviceMemoryProperties
+	vk.GetPhysicalDeviceMemoryProperties(physical_device, &mem_properties)
+
+	for i in 0 ..< mem_properties.memoryTypeCount {
+		if (type_filter & (1 << i)) != 0 && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties {
+			return i, true
+		}
+	}
+
+
+	return 0, false
+}
+
+allocate_buffer_memory :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, buffer: vk.Buffer, properties: vk.MemoryPropertyFlags) -> (vk.DeviceMemory, bool) {
+
+	mem_requirements: vk.MemoryRequirements
+	vk.GetBufferMemoryRequirements(device, buffer, &mem_requirements)
+
+	// Find the memory type based on mem requirements and asked properties.
+	memory_type_index, ok := find_memory_type(physical_device, mem_requirements.memoryTypeBits, properties)
+	if !ok {
+		fmt.eprintfln("Failed to find memory type.")
+		return 0, false
+	}
+
+	// Allocate...
+	alloc_info := vk.MemoryAllocateInfo {
+		sType           = vk.StructureType.MEMORY_ALLOCATE_INFO,
+		allocationSize  = mem_requirements.size,
+		memoryTypeIndex = memory_type_index,
+	}
+
+	buffer_memory: vk.DeviceMemory
+	result := vk.AllocateMemory(device, &alloc_info, nil, &buffer_memory)
+	if result != .SUCCESS {
+		fmt.eprintfln("Failed to allocate memory. VkResult=%v", result)
+		return 0, false
+	}
+
+	// Bind the memory to the buffer
+	result = vk.BindBufferMemory(device, buffer, buffer_memory, 0)
+	if result != .SUCCESS {
+		fmt.eprintfln("Failed to bind memory to buffer. VkResult=%v", result)
+		return 0, false
+	}
+
+	return buffer_memory, true
+
+}
+
+mem_copy_to_buffer :: proc(device: vk.Device, buffer_memory: vk.DeviceMemory, data: []$T) -> bool {
+
+	size := size_of(T) * len(data)
+	dest_data: [^]u8
+
+	result := vk.MapMemory(device, buffer_memory, 0, u64(size), {}, cast(^rawptr)&dest_data)
+	if result != .SUCCESS {
+		fmt.eprintfln("Failed to map memory. VkResult=%v", result)
+		return false
+	}
+
+	mem.copy(dest_data[0:], raw_data(data), size)
+
+	vk.UnmapMemory(device, buffer_memory)
+
+	return true
 }
 
 main :: proc() {
@@ -1250,7 +1411,6 @@ main :: proc() {
 
 	// Get swap chain images
 	swap_chain_images := get_swap_chain_images(device, swap_chain)
-	defer delete(swap_chain_images)
 	fmt.printfln("Swap chain images [%d]... OK", len(swap_chain_images))
 
 
@@ -1335,6 +1495,40 @@ main :: proc() {
 	}
 	fmt.println("Draw fence... OK")
 
+	// Vertex buffer creation...
+    // odinfmt: disable
+	vertices := []Vertex{
+        {pos = {0.0, -0.5}, color = {1.0, 0.0, 0.0}},
+        {pos = {0.5, 0.5}, color = {0.0, 1.0, 0.0}},
+        {pos = {-0.5, 0.5}, color= {0.0, 0.0, 1.0}},
+    }
+    // odinfmt: enable
+	vertex_buffer: vk.Buffer
+	vertex_buffer, ok = create_vertex_buffer(device, u64(size_of(Vertex) * len(vertices)))
+	if !ok {
+		fmt.eprintln("Failed to create vertex buffer.")
+		os.exit(1)
+	}
+	fmt.println("Vertex buffer creation... OK")
+
+
+	// Allocate memory buffer to prepare for data copy
+	vertex_buffer_memory: vk.DeviceMemory
+	vertex_buffer_memory, ok = allocate_buffer_memory(physical_device, device, vertex_buffer, {.HOST_VISIBLE, .HOST_COHERENT})
+	if !ok {
+		fmt.eprintln("Failed to create vertex buffer.")
+		os.exit(1)
+	}
+	fmt.println("Vertex buffer memory allocation... OK")
+
+	// Copy vertex data to memory
+	ok = mem_copy_to_buffer(device, vertex_buffer_memory, vertices)
+	if !ok {
+		fmt.eprintln("Failed to copy vertex data to buffer.")
+		os.exit(1)
+	}
+	fmt.println("Vertex copied to buffer... OK")
+
 
 	fmt.println()
 	fmt.println("Vulkan initialization completed with success!")
@@ -1349,50 +1543,98 @@ main :: proc() {
 	}
 	glfw.SetKeyCallback(window, key_callback)
 
+	// Window resize
+	framebuffer_resize_callback :: proc "c" (window: glfw.WindowHandle, width: i32, height: i32) {
+		g_framebuffer_resized = true
+	}
+	glfw.SetFramebufferSizeCallback(window, framebuffer_resize_callback)
+
 	frame_index: u32 = 0
 	for !glfw.WindowShouldClose(window) && g_running {
 		glfw.PollEvents()
 
 		//Acquire next image.
 		swap_chain_image_index: u32
-		swap_chain_image_index, ok = acquire_next_image(device, swap_chain, draw_fences[frame_index], acquire_semaphores[frame_index])
+		swap_chain_creation_needed: bool
+		swap_chain_image_index, swap_chain_creation_needed, ok = acquire_next_image(device, swap_chain, draw_fences[frame_index], acquire_semaphores[frame_index])
 		if !ok {
 			fmt.eprintln("Failed to acquire next image.")
 			os.exit(1)
 		}
 
-		// Record command bufffer
-		ok = record_command_buffer(
-			command_buffers[frame_index],
-			swap_chain_images[swap_chain_image_index],
-			swap_chain_image_views[swap_chain_image_index],
-			swap_chain_extent,
-			graphics_pipeline,
-		)
-		if !ok {
-			fmt.eprintln("Failed to record commands into buffer.")
-			os.exit(1)
+		// Skip rendering if we need to recreate the swap chain.
+		if !swap_chain_creation_needed {
+			// Record command bufffer
+			ok = record_command_buffer(
+				command_buffers[frame_index],
+				swap_chain_images[swap_chain_image_index],
+				swap_chain_image_views[swap_chain_image_index],
+				swap_chain_extent,
+				graphics_pipeline,
+				vertex_buffer,
+			)
+			if !ok {
+				fmt.eprintln("Failed to record commands into buffer.")
+				os.exit(1)
+			}
+
+			// Submit the command buffer to the graphics queue
+			ok = submit_command_buffer(
+				device,
+				command_buffers[frame_index],
+				draw_fences[frame_index],
+				acquire_semaphores[frame_index],
+				submit_semaphores[swap_chain_image_index],
+				graphics_queue,
+			)
+			if !ok {
+				fmt.eprintln("Failed to submit command buffer.")
+				os.exit(1)
+			}
+
+			// Present the image to the user
+			swap_chain_creation_needed, ok = queue_present(device, swap_chain, submit_semaphores[swap_chain_image_index], graphics_queue, swap_chain_image_index)
+			if !ok {
+				fmt.eprintln("Failed to queue present.")
+				os.exit(1)
+			}
+
 		}
 
-		// Submit the command buffer to the graphics queue
-		ok = submit_command_buffer(
-			device,
-			command_buffers[frame_index],
-			draw_fences[frame_index],
-			acquire_semaphores[frame_index],
-			submit_semaphores[swap_chain_image_index],
-			graphics_queue,
-		)
-		if !ok {
-			fmt.eprintln("Failed to submit command buffer.")
-			os.exit(1)
-		}
+		// Swap chain recreation?
+		if swap_chain_creation_needed || g_framebuffer_resized {
+			fmt.println("Swap chain recreation...")
 
-		// Present the image to the user
-		ok = queue_present(device, swap_chain, submit_semaphores[swap_chain_image_index], graphics_queue, swap_chain_image_index)
-		if !ok {
-			fmt.eprintln("Failed to queue present.")
-			os.exit(1)
+			// Manage minimized window, we will simply pause the process
+			width, height := glfw.GetFramebufferSize(window)
+			for width == 0 && height == 0 {
+				glfw.WaitEvents()
+				width, height = glfw.GetFramebufferSize(window)
+			}
+
+			g_framebuffer_resized = false
+			wait_idle_device(device)
+
+			destroy_swap_chain_image_views(device, swap_chain_image_views)
+			destroy_swap_chain_images(device, swap_chain_images)
+			destroy_swap_chain(device, swap_chain)
+
+			swap_chain, swap_chain_extent, swap_chain_format, ok = create_swap_chain(physical_device, device, surface, window)
+			if !ok {
+				fmt.eprintln("Failed to create swap chain.")
+				os.exit(1)
+			}
+
+			swap_chain_images = get_swap_chain_images(device, swap_chain)
+
+			swap_chain_image_views, ok = create_image_views(device, swap_chain_images, swap_chain_format)
+			if !ok {
+				fmt.eprintln("Failed to create swap chain images views.")
+				os.exit(1)
+			}
+
+			fmt.println("Swap chain recreation... OK")
+
 		}
 
 		// Next frame
@@ -1405,6 +1647,12 @@ main :: proc() {
 	//---------------------
 
 	// Cleanup
+	if vertex_buffer_memory != 0 {
+		vk.FreeMemory(device, vertex_buffer_memory, nil)
+	}
+	if vertex_buffer != 0 {
+		vk.DestroyBuffer(device, vertex_buffer, nil)
+	}
 	for draw_fence in draw_fences {
 		if draw_fence != 0 {
 			vk.DestroyFence(device, draw_fence, nil)
@@ -1432,15 +1680,11 @@ main :: proc() {
 	if shader_module != 0 {
 		vk.DestroyShaderModule(device, shader_module, nil)
 	}
-	if swap_chain_image_views != nil {
-		for image_view in swap_chain_image_views {
-			vk.DestroyImageView(device, image_view, nil)
-		}
-		delete(swap_chain_image_views)
-	}
-	if swap_chain != 0 {
-		vk.DestroySwapchainKHR(device, swap_chain, nil)
-	}
+
+	destroy_swap_chain_image_views(device, swap_chain_image_views)
+	destroy_swap_chain_images(device, swap_chain_images)
+	destroy_swap_chain(device, swap_chain)
+
 	if device != nil {
 		vk.DestroyDevice(device, nil)
 	}

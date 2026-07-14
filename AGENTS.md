@@ -55,3 +55,9 @@ Example:
 ```
 odin build . -debug -vet -strict-style -vet-tabs -disallow-do -warnings-as-errors -out:bin/debug/03_validation_layers
 ```
+
+To test executable, you need to execute from the root of the main.odin. ex: Working directory needs to be: src/03_validation_layers to execute bin/debug/03_validation_layers
+
+Always use `timeout` when you execute odin run or the executable.
+
+

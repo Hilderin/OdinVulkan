@@ -9,7 +9,7 @@ main :: proc() {
 
 	fmt.println()
 	fmt.println("Compiling...")
-	spv, ok := compile_slang_shader("shader.slang", {"fragMain", "vertMain"})
+	spv, ok := compile_slang_shader("shader.slang", {"vertMain", "fragMain"})
 	if !ok {
 		fmt.eprintln("Shader compilation failed.")
 		os.exit(1)

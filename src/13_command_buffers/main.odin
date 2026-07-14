@@ -1083,7 +1083,7 @@ main :: proc() {
 
 	// Create shader module
 	shader_module: vk.ShaderModule
-	shader_module, ok = create_shader_module(device, "shader.slang", {"fragMain", "vertMain"})
+	shader_module, ok = create_shader_module(device, "shader.slang", {"vertMain", "fragMain"})
 	if !ok {
 		fmt.eprintln("Failed to create shader module.")
 		os.exit(1)

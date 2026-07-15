@@ -32,7 +32,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 07 | [Surface](./07_surface.md) | Create a `VkSurfaceKHR` so Vulkan knows where to draw. |
 | 08 | [Swap Chain](./08_swap_chain.md) | Query surface capabilities, pick a present mode and extent, create a swap chain. |
 | 09 | [Image Views](./09_image_views.md) | Wrap each swap chain image in an image view so the pipeline can use them as render targets. |
-| 10 | [Shaders Compilation](./10_shaders_compilation.md) | Compile Slang shaders to SPIR-V using `slangc` at build time. |
+| 10 | [Shaders Compilation](./10_shaders_compilation.md) | Compile Slang shaders to SPIR-V using `slangc` at run time. |
 | 11 | [Shader Module](./11_shader_module.md) | Load the compiled SPIR-V into `VkShaderModule` objects. |
 | 12 | [Graphics Pipeline](./12_graphics_pipeline.md) | The big one — vertex input, input assembly, rasterizer, multisampling, depth/stencil, color blend, layout, render pass. |
 | 13 | [Command Buffers](./13_command_buffers.md) | Allocate and record command buffers that record the draw calls. |
@@ -44,12 +44,12 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 19 | [Index Buffer](./19_index_buffer.md) | Indexed drawing to reuse vertices. |
 | 20 | [Uniform Buffers](./20_uniform_buffers.md) | Per-frame uniform buffers for transformation matrices and other constants. |
 
-## Reference
+## References
 
 - [Code standards](./code_standards.md) — naming, style, compiler flags, Vulkan-specific gotchas.
 - [Prerequisites](./prerequisites.md) — installing Odin, Vulkan SDK, GLFW, VSCode setup.
 
-## References
+## External References
 
 - [Khronos Vulkan® Tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html)
 - [The Vulkan Guide](https://docs.vulkan.org/guide/latest/index.html)

@@ -10,11 +10,14 @@ Yep, another Vulkan tutorial based on the [official Vulkan tutorial](https://doc
 
 At the same time, I'll throw in my two cents in the tutorial by adding a few details I found important that I personally missed the first times I went through the tutorial. My goal is to share as much knowledge as possible on the subject while keeping it accessible, interesting and relevant.
 
+
 The other thing that caused trouble is that there are two versions of the tutorial: the first version ([https://vulkan-tutorial.com](https://vulkan-tutorial.com)) is based on the C API, while the new official one from Khronos ([https://docs.vulkan.org/tutorial/latest/00_Introduction.html](https://docs.vulkan.org/tutorial/latest/00_Introduction.html)) uses the C++ RAII version which often wraps the lower-level calls we'll be using in Odin. On the other hand, the more recent official tutorial uses version 1.4 of the Vulkan API as well as Slang instead of GLSL. This new version of the Vulkan API makes developers' lives slightly easier by enabling dynamic rendering. The idea here is therefore to use the new version of the API and use Slang, but in Odin.
 
-Each folder in `src/` is one step forward. The docs here explain what each step does and why it's done that way, in roughly the same order you'd write the code.
+All the code for this tutorial lives in the [repository](https://github.com/Hilderin/OdinVulkan), under the `src/` folder. Each folder in `src/` is one step forward. The docs here explain what each step does and why it's done that way, in roughly the same order you'd write the code.
 
 If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain installed, then go through the steps below in order. Each doc links forward to the next one.
+
+> **Attribution:** This project is inspired by the [Khronos Vulkan® Tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html) (licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)) and the original [Vulkan Tutorial](https://vulkan-tutorial.com) by Alexander Overvoorde. The code and text in this repository are original work written in Odin and licensed under the [MIT License](https://github.com/Hilderin/OdinVulkan/blob/main/LICENSE).
 
 ## Steps
 

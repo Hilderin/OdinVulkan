@@ -8,6 +8,8 @@ Interesting details:
 - API Vulkan 1.4
 - Slang as the shader language
 
+> **Attribution:** This project is inspired by the [Khronos Vulkan® Tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html) (licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)) and the original [Vulkan Tutorial](https://vulkan-tutorial.com) by Alexander Overvoorde. The code and text in this repository are original work written in Odin and licensed under the [MIT License](./LICENSE).
+
 
 ## How to use this repository
 

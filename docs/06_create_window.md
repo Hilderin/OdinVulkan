@@ -15,14 +15,12 @@ The full source for this step lives in `src/06_create_window/main.odin`.
 
 ## What's new, in one glance
 
-The diff against `src/05_logical_device` is small and entirely on the GLFW side — Vulkan itself isn't touched:
+- `create_window` — sets two GLFW hints, creates the window, returns the handle.
+- A `running` global and a `key_callback` — so Escape exits the loop cleanly.
+- An event loop in `main` between "init completed" and cleanup.
+- Window + GLFW cleanup at the end of `main`.
 
-1. `create_window` — sets two GLFW hints, creates the window, returns the handle.
-2. A `running` global and a `key_callback` — so Escape exits the loop cleanly.
-3. An event loop in `main` between "init completed" and cleanup.
-4. Window + GLFW cleanup at the end of `main`.
-
-The rest of the file is unchanged from step 05 (a few blank lines added between procs for readability).
+The rest of the file is unchanged from step 05.
 
 ---
 
@@ -106,12 +104,7 @@ Vulkan teardown is unchanged from step 05. The new bits go *after* Vulkan: the w
 
 ---
 
-## Run it
-
-```
-odin build . -debug -vet -strict-style -vet-tabs -disallow-do -warnings-as-errors -out:bin/debug/06_create_window
-bin/debug/06_create_window
-```
+## Test it
 
 A 512x512 window titled "My first window" should appear and stay until you close it or hit Escape.
 

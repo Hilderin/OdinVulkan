@@ -12,14 +12,14 @@ heading_anchors: true
 
 aux_links:
   "Source on GitHub":
-    - "//github.com/guillaume/Documents/Projects/OdinVulkan"
+    - "//github.com/Hilderin/OdinVulkan"
 
 footer_content: "Odin Vulkan Tutorial &copy; 2026. Distributed by an MIT license."
 
 # GitHub edit link
 gh_edit_link: true
 gh_edit_link_text: "Edit this page on GitHub."
-gh_edit_repository: "https://github.com/guillaume/Documents/Projects/OdinVulkan"
+gh_edit_repository: "https://github.com/Hilderin/OdinVulkan"
 gh_edit_branch: "main"
 gh_edit_source: docs
 gh_edit_view_mode: "tree"

@@ -16,11 +16,8 @@ The corresponding chapters in the Vulkan Tutorial are:
 ---
 
 ## What's new, in one glance
-
-The diff against `src/04_physical_device` is small. One new function, one new global, a couple of small cleanups:
-
-1. `create_logical_device` — creates the `VkDevice` from the physical device, enables the queues and features we want, and returns the device + graphics queue.
-2. `required_extensions` is now a global — we need the same list to pick the physical device and to create the logical device.
+- `create_logical_device` — creates the `VkDevice` from the physical device, enables the queues and features we want, and returns the device + graphics queue.
+- `required_extensions` is now a global — we need the same list to pick the physical device and to create the logical device.
 
 `main` keeps the result of `pick_physical_device`, calls `create_logical_device`, and adds a `vk.DestroyDevice` to the cleanup section.
 

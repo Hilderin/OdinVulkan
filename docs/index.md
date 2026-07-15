@@ -45,3 +45,12 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 
 - [Code standards](./code_standards.md) — naming, style, compiler flags, Vulkan-specific gotchas.
 - [Prerequisites](./prerequisites.md) — installing Odin, Vulkan SDK, GLFW, VSCode setup.
+
+## References
+
+- [Khronos Vulkan® Tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html)
+- [The Vulkan Guide](https://docs.vulkan.org/guide/latest/index.html)
+- [Vulkan Samples](https://docs.vulkan.org/samples/latest/README.html)
+- [Vulkan Tutorial](https://vulkan-tutorial.com)
+- [Odin Documentation](https://odin-lang.org/docs/)
+- [Odin Examples](https://github.com/odin-lang/examples)

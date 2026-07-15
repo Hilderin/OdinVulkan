@@ -399,7 +399,7 @@ choose_swap_extent :: proc(capabilities: vk.SurfaceCapabilitiesKHR, window: glfw
 
 choose_swap_min_image_count :: proc(capabilities: vk.SurfaceCapabilitiesKHR) -> u32 {
 	min_image_count := max(3, capabilities.minImageCount)
-	if ((0 < capabilities.maxImageCount) && (capabilities.maxImageCount < min_image_count)) {
+	if 0 < capabilities.maxImageCount && capabilities.maxImageCount < min_image_count {
 		min_image_count = capabilities.maxImageCount
 	}
 	return min_image_count

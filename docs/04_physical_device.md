@@ -18,13 +18,10 @@ Where the tutorial picks the first suitable device, this step takes a scoring ap
 ---
 
 ## What's new, in one glance
-
-A diff against `src/03_validation_layers` shows four new functions:
-
-1. `find_queue_families` — lists the device's queue families, finds one matching the requested flags.
-2. `get_device_features` — queries several feature structs at once through a pNext chain.
-3. `score_device` — rates a physical device against our requirements and returns a score (or -1 if unsuitable).
-4. `pick_physical_device` — enumerates devices, calls `score_device` on each, keeps the best.
+- `find_queue_families` — lists the device's queue families, finds one matching the requested flags.
+- `get_device_features` — queries several feature structs at once through a pNext chain.
+- `score_device` — rates a physical device against our requirements and returns a score (or -1 if unsuitable).
+- `pick_physical_device` — enumerates devices, calls `score_device` on each, keeps the best.
 
 `main` now calls `pick_physical_device(instance)` between instance creation and cleanup.
 

@@ -18,13 +18,10 @@ IMPORTANT: Normally validation layers are only enabled in debug builds — they 
 ---
 
 ## What's new, in one glance
-
-A diff against `src/02_instance` shows four big additions:
-
-1. `are_layers_supported` — checks that the required layers are installed.
-2. `debug_callback` — a function Vulkan calls every time a validation message is emitted.
-3. `VK_EXT_debug_utils` extension + `VkDebugUtilsMessengerEXT` — the handle that routes messages to your callback.
-4. The messenger is set up *twice*: once chained into `vkCreateInstance` (to catch messages during instance creation), then a permanent one right after.
+- `are_layers_supported` — checks that the required layers are installed.
+- `debug_callback` — a function Vulkan calls every time a validation message is emitted.
+- `VK_EXT_debug_utils` extension + `VkDebugUtilsMessengerEXT` — the handle that routes messages to your callback.
+- The messenger is set up *twice*: once chained into `vkCreateInstance` (to catch messages during instance creation), then a permanent one right after.
 
 ---
 

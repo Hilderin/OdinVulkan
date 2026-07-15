@@ -410,7 +410,7 @@ choose_swap_extent :: proc(capabilities: vk.SurfaceCapabilitiesKHR, window: glfw
 
 choose_swap_min_image_count :: proc(capabilities: vk.SurfaceCapabilitiesKHR) -> u32 {
 	min_image_count := max(3, capabilities.minImageCount)
-	if ((0 < capabilities.maxImageCount) && (capabilities.maxImageCount < min_image_count)) {
+	if (0 < capabilities.maxImageCount) && (capabilities.maxImageCount < min_image_count) {
 		min_image_count = capabilities.maxImageCount
 	}
 	return min_image_count
@@ -510,13 +510,13 @@ create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_for
 
 	create_info := vk.ImageViewCreateInfo {
 		sType            = .IMAGE_VIEW_CREATE_INFO,
-		viewType         = vk.ImageViewType.D2,
+		viewType         = .D2,
 		format           = swap_chain_format,
 		subresourceRange = {{.COLOR}, 0, 1, 0, 1},
 	}
 
 	image_views := make([]vk.ImageView, len(images))
-	for &image, i in images {
+	for image, i in images {
 
 		// Set the image, the rest of the struct stays the same for each image.
 		create_info.image = image

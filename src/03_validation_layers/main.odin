@@ -65,7 +65,7 @@ create_instance :: proc() -> vk.Instance {
 
 	app_info := vk.ApplicationInfo {
 		sType              = .APPLICATION_INFO,
-		pApplicationName   = "Vulkan initialization",
+		pApplicationName   = "Odin Vulkan Tutorial",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
 		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
@@ -135,7 +135,7 @@ are_layers_supported :: proc(required_layers: []cstring) -> b32 {
 
 
 main :: proc() {
-	fmt.println("Vulkan initialization")
+	fmt.println("Odin Vulkan Tutorial")
 	fmt.println("-------------------------------------------")
 
 	// We need to initialize GLFW so the glfw.GetInstanceProcAddress() method returns a valid callback to load Vulkan function addresses.

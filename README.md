@@ -1,22 +1,24 @@
 # Odin Vulkan Tutorial
-This repository contains instructions and tutorial to use Vulkan in Odin from scratch. It aims to explain in detail every aspect of using Vulkan in Odin from the installation process to more advanced tutorials on shaders, computed shaders, lighting, shadow, etc...
+This repository contains my work adapting the official Vulkan Tutorial from the Khronos site [https://docs.vulkan.org/tutorial/latest/00_Introduction.html](https://docs.vulkan.org/tutorial/latest/00_Introduction.html) to the Odin language.
 
-This tutorial goes in pair with https://docs.vulkan.org/tutorial/latest/00_Introduction.html which uses Vulkan 1.4, Dynamic rendering, Timeline semaphore and Slang.
+The tricky part is that this version of the tutorial uses C++ with RAII classes rather than the C version of the Vulkan API, which is further from Odin since Odin doesn't support classes or object-oriented programming. The original [Vulkan Tutorial](https://vulkan-tutorial.com) was therefore a great help in putting this repository together.
+
+Interesting details:
+- Odin version dev-2026-07
+- API Vulkan 1.4
+- Slang as the shader language
 
 
 ## How to use this repository
 
-The [docs](docs/README.md) contains the tutorials explanations.
+The [docs](docs/index.md) contains the tutorial explanations.
+The [src](src) contains a folder per project, each project is a step in the tutorial.
 
-Each project is self contained and configure to run in VSCode. You should open each project folder in VSCode directly.
+Each project is self-contained and configured to run in VSCode. You should open each project folder in VSCode directly.
 
 
-## Setup process
-
-### Prerequisites
+## Prerequisites
 Follow instructions in the [prerequisites section](docs/prerequisites.md).
-
-
 
 
 ## Preview the docs locally
@@ -34,20 +36,12 @@ Open `http://127.0.0.1:4000` in your browser. The site rebuilds automatically wh
 
 Requires Ruby and Bundler (`sudo apt install ruby ruby-dev build-essential && sudo gem install bundler`).
 
-## Todo:
-
-- Documentation for odinfmt.json
-
-
-
-
-
-
-
 
 
 ## References
-
-https://docs.vulkan.org/tutorial/latest/00_Introduction.html
-
-https://vulkan-tutorial.com
+- [Khronos Vulkan® Tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html)
+- [The Vulkan Guide](https://docs.vulkan.org/guide/latest/index.html)
+- [Vulkan Samples](https://docs.vulkan.org/samples/latest/README.html)
+- [Vulkan Tutorial](https://vulkan-tutorial.com)
+- [Odin Documentation](https://odin-lang.org/docs/)
+- [Odin Examples](https://github.com/odin-lang/examples)

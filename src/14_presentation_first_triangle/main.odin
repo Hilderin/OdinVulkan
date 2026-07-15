@@ -71,7 +71,7 @@ create_instance :: proc() -> vk.Instance {
 
 	app_info := vk.ApplicationInfo {
 		sType              = .APPLICATION_INFO,
-		pApplicationName   = "Vulkan initialization",
+		pApplicationName   = "Odin Vulkan Tutorial",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
 		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
@@ -243,7 +243,7 @@ score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 		}
 	}
 
-	vulkan11_f, vulkan13_f, ext_dynamic_f, base_f := get_device_features(device)
+	vulkan11_f, vulkan13_f, ext_dynamic_f, _ := get_device_features(device)
 
 	if !vulkan11_f.shaderDrawParameters {
 		fmt.printfln("  %q — missing shaderDrawParameters (skipped)", name)
@@ -261,10 +261,6 @@ score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
 	}
 	if !ext_dynamic_f.extendedDynamicState {
 		fmt.printfln("  %q — missing extendedDynamicState (skipped)", name)
-		return -1
-	}
-	if !base_f.geometryShader {
-		fmt.printfln("  %q — missing geometryShader (skipped)", name)
 		return -1
 	}
 
@@ -1052,7 +1048,7 @@ wait_idle_device :: proc(device: vk.Device) {
 }
 
 main :: proc() {
-	fmt.println("Vulkan initialization")
+	fmt.println("Odin Vulkan Tutorial")
 	fmt.println("-------------------------------------------")
 
 	// We need to initialize GLFW so the glfw.GetInstanceProcAddress() method returns a valid callback to load Vulkan function addresses.

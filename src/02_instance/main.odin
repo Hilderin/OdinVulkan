@@ -26,7 +26,7 @@ create_instance :: proc() -> vk.Instance {
 
 	app_info := vk.ApplicationInfo {
 		sType              = .APPLICATION_INFO,
-		pApplicationName   = "Instance creation",
+		pApplicationName   = "Odin Vulkan Tutorial",
 		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
 		pEngineName        = "No Engine",
 		engineVersion      = vk.MAKE_VERSION(1, 0, 0),

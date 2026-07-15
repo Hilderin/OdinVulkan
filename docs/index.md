@@ -21,7 +21,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | # | Doc | What it covers |
 |---|-----|----------------|
 | 01 | [Test Setup](./01_test_setup.md) | Sanity check: GLFW, Vulkan instance, SDK path, validation layers, slang compiler. |
-| 02 | [Instance](./02_instance.md) | Wrap instance creation in a procedure, query GLFW extensions, target Vulkan 1.4, destroy the instance on exit. |
+| 02 | [Instance](./02_ instance.md) | Wrap instance creation in a procedure, query GLFW extensions, target Vulkan 1.4, destroy the instance on exit. |
 | 03 | [Validation Layers](./03_validation_layers.md) | Enable `VK_LAYER_KHRONOS_validation`, add a debug messenger so Vulkan tells you when you mess up. |
 | 04 | [Physical Device](./04_physical_device.md) | Pick a GPU that supports Vulkan and meets basic requirements (dedicated vs integrated, queues, features). |
 | 05 | [Logical Device](./05_logical_device.md) | Create a logical device from the physical one, request graphics and present queues. |

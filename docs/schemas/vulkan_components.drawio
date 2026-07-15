@@ -1,0 +1,79 @@
+<mxfile host="Electron">
+  <diagram name="Page-1" id="IN9-azHexENONuupHfoY">
+    <mxGraphModel dx="673" dy="404" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Instance" vertex="1">
+          <mxGeometry height="50" width="110" x="70" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Physical&lt;div&gt;device&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="110" x="430" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Device" vertex="1">
+          <mxGeometry height="50" width="110" x="550" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Window" vertex="1">
+          <mxGeometry height="50" width="110" x="190" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Surface" vertex="1">
+          <mxGeometry height="50" width="110" x="310" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Swap chain" vertex="1">
+          <mxGeometry height="50" width="110" x="70" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Swap chain&lt;div&gt;images&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="110" x="190" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Swap chain&lt;div&gt;images&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;views&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="110" x="310" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Shader&lt;div&gt;module&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="110" x="70" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Descriptor set&lt;div&gt;layout&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="110" x="190" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Descriptor pool" vertex="1">
+          <mxGeometry height="50" width="110" x="310" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Descriptor set" vertex="1">
+          <mxGeometry height="50" width="110" x="430" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-13" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Pipeline" vertex="1">
+          <mxGeometry height="50" width="110" x="550" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Comman pool" vertex="1">
+          <mxGeometry height="50" width="110" x="70" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-15" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Command buffer" vertex="1">
+          <mxGeometry height="50" width="110" x="190" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-16" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Semaphores" vertex="1">
+          <mxGeometry height="50" width="110" x="310" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-17" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Fences" vertex="1">
+          <mxGeometry height="50" width="110" x="430" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-18" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Buffer" vertex="1">
+          <mxGeometry height="50" width="110" x="70" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-19" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Device Memory" vertex="1">
+          <mxGeometry height="50" width="110" x="190" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-20" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Vertex buffer" vertex="1">
+          <mxGeometry height="50" width="110" x="310" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-21" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Uniform buffer" vertex="1">
+          <mxGeometry height="50" width="110" x="550" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Index buffer" vertex="1">
+          <mxGeometry height="50" width="110" x="430" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="A4kj7iQ6h1oLjYRLkTNc-23" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Push constant" vertex="1">
+          <mxGeometry height="50" width="110" x="670" y="370" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -7,7 +7,7 @@ nav_order: 7
 
 We picked a physical device. Now we create a `VkDevice` from it - the logical device, the actual handle we'll use to talk to the GPU - and grab a graphics queue.
 
-The full source for this step lives in `src/05_logical_device/main.odin`.
+The full source for this step lives in [src/05_logical_device/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/05_logical_device/main.odin).
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/04_Logical_device_and_queues.html>

@@ -5,7 +5,7 @@ nav_order: 16
 
 # 14 – Presentation and First Triangle
 
-This is the step where everything finally pays off. Until now we've been assembling pieces - instance, device, swapchain, views, shaders, pipeline, command buffers - and the window has stayed stubbornly blank. Time to wire the main loop: acquire a swapchain image, submit the recorded command buffer, present the result, and repeat every frame. The triangle appears.
+This is the step where everything finally pays off!! Until now we've been assembling pieces - instance, device, swapchain, views, shaders, pipeline, command buffers - and the window has stayed stubbornly blank. Time to wire the main loop: acquire a swapchain image, submit the recorded command buffer, present the result, and repeat every frame. The triangle appears.
 
 The new pieces are all about **synchronization**. The CPU and the GPU run in parallel, and so do the GPU and the presentation engine. Without something to coordinate them, you'd submit a frame before the previous one finished drawing, or try to present an image the GPU hasn't finished writing. Vulkan doesn't guess for you here - you tell it, with semaphores and fences, exactly what waits on what.
 
@@ -15,7 +15,7 @@ The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/02_Rendering_and_presentation.html>
 - vulkan-tutorial.com version: <https://vulkan-tutorial.com/Drawing_a_triangle/Drawing/Rendering_and_presentation>
 
-I'd also suggest reading these before writing your own loop:
+Synchronization is genuinely one of the trickier parts of Vulkan, not obvious at first glance and easy to get wrong. If you're curious, I'd suggest reading these articles:
 - Swapchain Semaphore Reuse: <https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html>
 - Understanding Vulkan Synchronization: <https://www.khronos.org/blog/understanding-vulkan-synchronization>
 

@@ -58,3 +58,15 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 - [Slang language](https://shader-slang.org)
 - [Odin Documentation](https://odin-lang.org/docs/)
 - [Odin Examples](https://github.com/odin-lang/examples)
+
+---
+
+## License
+
+Copyright (C) 2026 Guillaume Lebrun
+
+The contents and code listings in this repository are licensed under the MIT License, unless stated otherwise. By contributing, you agree to license your contributions to the public under that same license.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See [LICENSE](https://github.com/Hilderin/OdinVulkan/blob/main/LICENSE) for the full text.

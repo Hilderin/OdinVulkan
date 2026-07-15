@@ -61,7 +61,7 @@ That's the whole story. The view doesn't allocate memory, doesn't duplicate pixe
 create_info := vk.ImageViewCreateInfo {
 	sType            = .IMAGE_VIEW_CREATE_INFO,
 	viewType         = .D2,
-	format           = swap_chain_format,
+	format           = format,
 	subresourceRange = {{.COLOR}, 0, 1, 0, 1},
 }
 

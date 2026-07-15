@@ -384,7 +384,7 @@ create_window :: proc() -> glfw.WindowHandle {
 	glfw.WindowHint(glfw.RESIZABLE, 1)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
-	window := glfw.CreateWindow(512, 512, "My first Vulkan Triangle", nil, nil)
+	window := glfw.CreateWindow(512, 512, "Let's resize this triangle", nil, nil)
 	if window == nil {
 		fmt.eprintln("Unable to create window")
 		os.exit(1)
@@ -513,12 +513,12 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 }
 
 
-create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> []vk.ImageView {
+create_image_views :: proc(device: vk.Device, images: []vk.Image, format: vk.Format) -> []vk.ImageView {
 
 	create_info := vk.ImageViewCreateInfo {
 		sType            = .IMAGE_VIEW_CREATE_INFO,
 		viewType         = .D2,
-		format           = swap_chain_format,
+		format           = format,
 		subresourceRange = {{.COLOR}, 0, 1, 0, 1},
 	}
 

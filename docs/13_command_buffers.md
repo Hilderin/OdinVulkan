@@ -47,7 +47,7 @@ The command buffer itself comes from `vk.AllocateCommandBuffers`:
 
 ```c
 command_buffers := make([]vk.CommandBuffer, 1)
-result := vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers))
+vk_check(vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers)), "Failed to create command buffer!")
 ```
 
 Note that we don't need to call `vk.FreeCommandBuffers` here, because command buffers are freed automatically when the CommandPool is destroyed. That works fine since we reuse the same CommandBuffer every frame. On the other hand, if you create a CommandBuffer for a one-shot use, you'll have to free the CommandBuffer yourself. We'll use that technique later on.

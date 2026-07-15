@@ -536,12 +536,12 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 }
 
 
-create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> []vk.ImageView {
+create_image_views :: proc(device: vk.Device, images: []vk.Image, format: vk.Format) -> []vk.ImageView {
 
 	create_info := vk.ImageViewCreateInfo {
 		sType            = .IMAGE_VIEW_CREATE_INFO,
 		viewType         = .D2,
-		format           = swap_chain_format,
+		format           = format,
 		subresourceRange = {{.COLOR}, 0, 1, 0, 1},
 	}
 

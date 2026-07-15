@@ -507,12 +507,12 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 }
 
 
-create_image_views :: proc(device: vk.Device, images: []vk.Image, swap_chain_format: vk.Format) -> []vk.ImageView {
+create_image_views :: proc(device: vk.Device, images: []vk.Image, format: vk.Format) -> []vk.ImageView {
 
 	create_info := vk.ImageViewCreateInfo {
 		sType            = .IMAGE_VIEW_CREATE_INFO,
 		viewType         = .D2,
-		format           = swap_chain_format,
+		format           = format,
 		subresourceRange = {{.COLOR}, 0, 1, 0, 1},
 	}
 
@@ -774,11 +774,7 @@ create_command_buffer :: proc(device: vk.Device, command_pool: vk.CommandPool) -
 	// Here, Vulkan needs an allocated array of CommandBuffer.
 	command_buffers := make([]vk.CommandBuffer, 1)
 	defer delete(command_buffers)
-	result := vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers))
-	if result != .SUCCESS {
-		fmt.eprintfln("Failed to create command buffer. VkResult=%v", result)
-		os.exit(1)
-	}
+	vk_check(vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers)), "Failed to create command buffer!")
 
 	return command_buffers[0]
 }

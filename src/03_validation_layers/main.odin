@@ -11,7 +11,7 @@ import vk "vendor:vulkan"
 // Globals needed for debug messenger cleanup.
 debug_messenger: vk.DebugUtilsMessengerEXT = {}
 
-// Debug level — controls which severities are enabled and printed.
+// Debug level - controls which severities are enabled and printed.
 debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
 
 // Required validation layers.
@@ -78,7 +78,7 @@ create_instance :: proc() -> vk.Instance {
 	append(&ext_names, ..extensions)
 	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
 
-	// Debug messenger create info — chained in pNext to intercept
+	// Debug messenger create info - chained in pNext to intercept
 	// messages DURING instance creation.
 	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
 		sType           = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,

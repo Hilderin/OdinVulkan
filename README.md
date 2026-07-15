@@ -45,5 +45,6 @@ Requires Ruby and Bundler (`sudo apt install ruby ruby-dev build-essential && su
 - [The Vulkan Guide](https://docs.vulkan.org/guide/latest/index.html)
 - [Vulkan Samples](https://docs.vulkan.org/samples/latest/README.html)
 - [Vulkan Tutorial](https://vulkan-tutorial.com)
+- [Slang language](https://shader-slang.org)
 - [Odin Documentation](https://odin-lang.org/docs/)
 - [Odin Examples](https://github.com/odin-lang/examples)

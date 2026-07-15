@@ -28,15 +28,15 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 03 | [Validation Layers](./03_validation_layers.md) | Enable `VK_LAYER_KHRONOS_validation`, add a debug messenger so Vulkan tells you when you mess up. |
 | 04 | [Physical Device](./04_physical_device.md) | Pick a GPU that supports Vulkan and meets basic requirements (dedicated vs integrated, queues, features). |
 | 05 | [Logical Device](./05_logical_device.md) | Create a logical device from the physical one, request graphics and present queues. |
-| 06 | [Create Window](./06_create_window.md) | Finally, a visible window — GLFW window creation, the event loop, and tying it to the Vulkan instance. |
+| 06 | [Create Window](./06_create_window.md) | Finally, a visible window - GLFW window creation, the event loop, and tying it to the Vulkan instance. |
 | 07 | [Surface](./07_surface.md) | Create a `VkSurfaceKHR` so Vulkan knows where to draw. |
 | 08 | [Swap Chain](./08_swap_chain.md) | Query surface capabilities, pick a present mode and extent, create a swap chain. |
 | 09 | [Image Views](./09_image_views.md) | Wrap each swap chain image in an image view so the pipeline can use them as render targets. |
 | 10 | [Shaders Compilation](./10_shaders_compilation.md) | Compile Slang shaders to SPIR-V using `slangc` at run time. |
 | 11 | [Shader Module](./11_shader_module.md) | Load the compiled SPIR-V into `VkShaderModule` objects. |
-| 12 | [Graphics Pipeline](./12_graphics_pipeline.md) | The big one — vertex input, input assembly, rasterizer, multisampling, depth/stencil, color blend, layout, render pass. |
+| 12 | [Graphics Pipeline](./12_graphics_pipeline.md) | The big one - vertex input, input assembly, rasterizer, multisampling, depth/stencil, color blend, layout, render pass. |
 | 13 | [Command Buffers](./13_command_buffers.md) | Allocate and record command buffers that record the draw calls. |
-| 14 | [Presentation — First Triangle](./14_presentation_first_triangle.md) | Submit command buffers, present the image, see a triangle on screen. |
+| 14 | [Presentation - First Triangle](./14_presentation_first_triangle.md) | Submit command buffers, present the image, see a triangle on screen. |
 | 15 | [Frames In Flight](./15_frames_in_flight.md) | Multiple frames in flight with fences and semaphores so the GPU stays fed. |
 | 16 | [Swap Chain Recreation](./16_swap_chain_recreation.md) | Handle window resize: rebuild the swap chain without restarting the app. |
 | 17 | [Vertex Input](./17_vertex_input.md) | Pass per-vertex data through vertex buffers instead of hard-coding it in the shader. |
@@ -46,8 +46,8 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 
 ## References
 
-- [Code standards](./code_standards.md) — naming, style, compiler flags, Vulkan-specific gotchas.
-- [Prerequisites](./prerequisites.md) — installing Odin, Vulkan SDK, GLFW, VSCode setup.
+- [Code standards](./code_standards.md) - naming, style, compiler flags, Vulkan-specific gotchas.
+- [Prerequisites](./prerequisites.md) - installing Odin, Vulkan SDK, GLFW, VSCode setup.
 
 ## External References
 
@@ -55,5 +55,6 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 - [The Vulkan Guide](https://docs.vulkan.org/guide/latest/index.html)
 - [Vulkan Samples](https://docs.vulkan.org/samples/latest/README.html)
 - [Vulkan Tutorial](https://vulkan-tutorial.com)
+- [Slang language](https://shader-slang.org)
 - [Odin Documentation](https://odin-lang.org/docs/)
 - [Odin Examples](https://github.com/odin-lang/examples)

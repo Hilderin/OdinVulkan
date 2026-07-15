@@ -11,7 +11,7 @@ import vk "vendor:vulkan"
 // Globals needed for debug messenger cleanup.
 debug_messenger: vk.DebugUtilsMessengerEXT = {}
 
-// Debug level — controls which severities are enabled and printed.
+// Debug level - controls which severities are enabled and printed.
 debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
 
 // Required validation layers.
@@ -185,7 +185,7 @@ score_device :: proc(device: vk.PhysicalDevice) -> int {
 	// Require at least Vulkan 1.4.
 	if props.apiVersion < vk.API_VERSION_1_4 {
 		fmt.printfln(
-			"  %q — apiVersion=%d.%d.%d, < 1.4 (skipped)",
+			"  %q - apiVersion=%d.%d.%d, < 1.4 (skipped)",
 			name,
 			vk.API_VERSION_MAJOR(props.apiVersion),
 			vk.API_VERSION_MINOR(props.apiVersion),
@@ -196,7 +196,7 @@ score_device :: proc(device: vk.PhysicalDevice) -> int {
 
 	// Must have at least a graphics queue family.
 	if _, ok := find_queue_families(device, {.GRAPHICS}); !ok {
-		fmt.printfln("  %q — no graphics queue (skipped)", name)
+		fmt.printfln("  %q - no graphics queue (skipped)", name)
 		return -1
 	}
 
@@ -219,7 +219,7 @@ score_device :: proc(device: vk.PhysicalDevice) -> int {
 				}
 			}
 			if !found {
-				fmt.printfln("  %q — missing required extension %s (skipped)", name, req_ext)
+				fmt.printfln("  %q - missing required extension %s (skipped)", name, req_ext)
 				return -1
 			}
 		}
@@ -228,15 +228,15 @@ score_device :: proc(device: vk.PhysicalDevice) -> int {
 	vulkan11_f, vulkan13_f, ext_dynamic_f, _ := get_device_features(device)
 
 	if !vulkan11_f.shaderDrawParameters {
-		fmt.printfln("  %q — missing shaderDrawParameters (skipped)", name)
+		fmt.printfln("  %q - missing shaderDrawParameters (skipped)", name)
 		return -1
 	}
 	if !vulkan13_f.dynamicRendering {
-		fmt.printfln("  %q — missing dynamicRendering (skipped)", name)
+		fmt.printfln("  %q - missing dynamicRendering (skipped)", name)
 		return -1
 	}
 	if !ext_dynamic_f.extendedDynamicState {
-		fmt.printfln("  %q — missing extendedDynamicState (skipped)", name)
+		fmt.printfln("  %q - missing extendedDynamicState (skipped)", name)
 		return -1
 	}
 
@@ -252,7 +252,7 @@ score_device :: proc(device: vk.PhysicalDevice) -> int {
 	// Maximum possible size of textures affects graphics quality.
 	score += int(props.limits.maxImageDimension2D)
 
-	fmt.printfln("  %q — type=%v, score=%d", name, props.deviceType, score)
+	fmt.printfln("  %q - type=%v, score=%d", name, props.deviceType, score)
 	return score
 }
 

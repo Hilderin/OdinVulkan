@@ -1,11 +1,11 @@
 ---
-title: 07 — Surface
+title: 07 - Surface
 nav_order: 9
 ---
 
 # 07 – Surface
 
-We now have a Vulkan instance and a window, but they don't know about each other. The `VkSurfaceKHR` is the bridge — a platform-agnostic handle that says "this is the thing Vulkan can present images to". Once it exists, we can finally ask a physical device: "can you draw to this window?"
+We now have a Vulkan instance and a window, but they don't know about each other. The `VkSurfaceKHR` is the bridge - a platform-agnostic handle that says "this is the thing Vulkan can present images to". Once it exists, we can finally ask a physical device: "can you draw to this window?"
 
 The full source for this step lives in `src/07_surface/main.odin`.
 
@@ -17,11 +17,11 @@ The corresponding chapters in the Vulkan Tutorial are:
 
 ## What's new, in one glance
 
-- `create_surface` — one-liner that asks GLFW to build a `VkSurfaceKHR` from the window.
-- `is_physical_device_support_surface` — queries whether a given queue family can present to the surface.
+- `create_surface` - one-liner that asks GLFW to build a `VkSurfaceKHR` from the window.
+- `is_physical_device_support_surface` - queries whether a given queue family can present to the surface.
 - Surface destruction in the cleanup section, before the instance goes.
 
-The surface is created right after the window, *before* device selection — because device selection now needs the surface to ask the present-support question.
+The surface is created right after the window, *before* device selection - because device selection now needs the surface to ask the present-support question.
 
 ---
 
@@ -36,9 +36,9 @@ create_surface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> vk.S
 }
 ```
 
-`VkSurfaceKHR` is not part of Vulkan core. It lives in the `VK_KHR_surface` extension, which is why every related type and call has the `KHR` suffix. Vulkan itself has no opinion about windows — it just deals with images and queues. The extension is the agreed-upon way to plug a windowing system in, without Vulkan having to know about Win32, X11 or Wayland.
+`VkSurfaceKHR` is not part of Vulkan core. It lives in the `VK_KHR_surface` extension, which is why every related type and call has the `KHR` suffix. Vulkan itself has no opinion about windows - it just deals with images and queues. The extension is the agreed-upon way to plug a windowing system in, without Vulkan having to know about Win32, X11 or Wayland.
 
-We don't call `vkCreateXcbSurfaceKHR` or any of the platform calls directly. GLFW owns the window, so GLFW owns the platform check — `glfw.CreateWindowSurface` picks the right backend and hands us back a `VkSurfaceKHR` we can use against any Vulkan call. The signature in the Odin glfw binding is literally `proc(instance, window, allocator, &surface) -> vk.Result`, so it slots into the same `vk_check` helper we already use for Vulkan calls.
+We don't call `vkCreateXcbSurfaceKHR` or any of the platform calls directly. GLFW owns the window, so GLFW owns the platform check - `glfw.CreateWindowSurface` picks the right backend and hands us back a `VkSurfaceKHR` we can use against any Vulkan call. The signature in the Odin glfw binding is literally `proc(instance, window, allocator, &surface) -> vk.Result`, so it slots into the same `vk_check` helper we already use for Vulkan calls.
 
 One thing worth noting: the surface is created from the `instance`, not from a device. It's tied to the instance, so it survives device selection and logical device creation. That's also why, in cleanup, it has to be destroyed *before* the instance but *after* the logical device.
 
@@ -55,7 +55,7 @@ is_physical_device_support_surface :: proc(physical_device: vk.PhysicalDevice, q
 }
 ```
 
-A graphics queue family is not automatically a present queue family. They usually coincide on desktop GPUs, but Vulkan refuses to assume it — you have to ask, for each queue family, with `vkGetPhysicalDeviceSurfaceSupportKHR`. The answer can be different per surface, which is why the call takes the surface as an argument.
+A graphics queue family is not automatically a present queue family. They usually coincide on desktop GPUs, but Vulkan refuses to assume it - you have to ask, for each queue family, with `vkGetPhysicalDeviceSurfaceSupportKHR`. The answer can be different per surface, which is why the call takes the surface as an argument.
 
 In Odin the Vulkan bindings define `supported` as a `b32` (Vulkan's `VkBool32`). A bare cast to `bool` is enough to bring it back into Odin's bool world.
 
@@ -88,7 +88,7 @@ if instance != nil {
 }
 ```
 
-The surface sits in the same cleanup window as the debug messenger: both are tied to the instance, so they must be destroyed before `vkDestroyInstance`. The surface also implies that the logical device has stopped using it, which is already true by the time we reach this block — `vkDestroyDevice` comes first.
+The surface sits in the same cleanup window as the debug messenger: both are tied to the instance, so they must be destroyed before `vkDestroyInstance`. The surface also implies that the logical device has stopped using it, which is already true by the time we reach this block - `vkDestroyDevice` comes first.
 
 `vkDestroySurfaceKHR` is part of the `VK_KHR_surface` extension, but it's a loader entry point that's always present as long as the instance was created with the extension enabled (GLFW asks for it for us, see step 02).
 
@@ -96,10 +96,10 @@ The surface sits in the same cleanup window as the debug messenger: both are tie
 
 ## Test it
 
-The window still does nothing visible — there's no swapchain yet, no image to put on it. The surface is just a handle Vulkan agreed to recognize.
+The window still does nothing visible - there's no swapchain yet, no image to put on it. The surface is just a handle Vulkan agreed to recognize.
 
 ---
 
 ## What's next
 
-With a surface in hand, the next step is the swapchain — the queue of images Vulkan will cycle through to actually put frames on that window. That's where presentation stops being theoretical. That's [08 — Swap Chain](./08_swap_chain.md).
+With a surface in hand, the next step is the swapchain - the queue of images Vulkan will cycle through to actually put frames on that window. That's where presentation stops being theoretical. That's [08 - Swap Chain](./08_swap_chain.md).

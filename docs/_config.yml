@@ -3,7 +3,7 @@ plugins:
 - jekyll-remote-theme
 
 title: Odin Vulkan Tutorial
-description: Learning Vulkan from scratch with Odin — step-by-step, no bootstrap, explained by hand.
+description: Learning Vulkan from scratch with Odin - step-by-step, no bootstrap, explained by hand.
 
 color_scheme: dark
 

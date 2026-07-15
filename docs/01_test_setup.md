@@ -1,5 +1,5 @@
 ---
-title: 01 — Test Setup
+title: 01 - Test Setup
 nav_order: 3
 ---
 
@@ -48,7 +48,7 @@ Slang compiler found... OK!
 Good job, everything is setup correctly!
 ```
 
-If you get an error instead, jump back to [prerequisites](./prerequisites.md) — that's exactly what it's there for.
+If you get an error instead, jump back to [prerequisites](./prerequisites.md) - that's exactly what it's there for.
 
 
 ## What's next

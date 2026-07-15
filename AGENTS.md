@@ -34,6 +34,7 @@ DON'T:
 - No LLM-style filler ("Let's dive in!", "In this tutorial, we will...", "It's worth noting that...").
 - No emoji.
 - Don't over-explain trivial things, but don't skip the non-obvious ones either.
+- Don't use '—', always use a regular dash '-'
 
 
 # Documentation format (Jekyll / Just the Docs)
@@ -43,7 +44,7 @@ The docs are published with Jekyll using the Just the Docs theme. Two rules to k
 1. **Every markdown file starts with a Jekyll front matter block**, exactly like `docs/01_test_setup.md`:
    ```
    ---
-   title: 01 — Test Setup
+   title: 01 - Test Setup
    nav_order: 3
    ---
    ```
@@ -66,11 +67,11 @@ All code must follow the conventions documented in `docs/code_standards.md` (nam
 # Build command
 Always build in "bin/debug" folder.
 Always build with the full set of vet/style flags. The project must compile cleanly with:
-- `-vet` — unused variables and common mistakes.
-- `-strict-style` — enforces style rules.
-- `-vet-tabs` — tabs for indentation, no mixing.
-- `-disallow-do` — no `do` blocks.
-- `-warnings-as-errors` — warnings don't get to hide.
+- `-vet` - unused variables and common mistakes.
+- `-strict-style` - enforces style rules.
+- `-vet-tabs` - tabs for indentation, no mixing.
+- `-disallow-do` - no `do` blocks.
+- `-warnings-as-errors` - warnings don't get to hide.
 
 The conventions are documented in `docs/code_standards.md`.
 

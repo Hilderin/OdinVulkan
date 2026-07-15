@@ -35,11 +35,11 @@ odin build . -debug -vet -strict-style -vet-tabs -disallow-do -warnings-as-error
 
 What these flags check, roughly:
 
-- `-vet` — unused variables, common mistakes.
-- `-strict-style` — enforces a subset of the style rules below.
-- `-vet-tabs` — complains if you mix tabs and spaces for indentation.
-- `-disallow-do` — forbids `do` blocks, which we don't use.
-- `-warnings-as-errors` — warnings don't get to hide.
+- `-vet` - unused variables, common mistakes.
+- `-strict-style` - enforces a subset of the style rules below.
+- `-vet-tabs` - complains if you mix tabs and spaces for indentation.
+- `-disallow-do` - forbids `do` blocks, which we don't use.
+- `-warnings-as-errors` - warnings don't get to hide.
 
 If any of these flag something, fix the code, don't relax the flags.
 
@@ -139,7 +139,7 @@ A few things that come up often in this codebase and aren't covered by the gener
 
 - `sType` on every struct in a `pNext` chain. Vulkan drivers ignore structs whose `sType` doesn't match, which means a missing `sType` fails silently: the feature is queried or enabled as if the struct wasn't there. Always set `sType` right after declaring the struct.
 - Activate the validation layers you check for. `areLayersSupported` only tells you the layer is installed; you still have to pass it to `createInfo.enabledLayerCount` / `ppEnabledLayerNames`. A check without activation is a no-op.
-- `cstring == cstring` compares by content in Odin. Don't convert to `string` just to compare extension or layer names — that allocates for nothing. Compare the `cstring`s directly.
-- `for value, index in` — the index comes second. It's the opposite of what people coming from Rust or Go expect.
+- `cstring == cstring` compares by content in Odin. Don't convert to `string` just to compare extension or layer names - that allocates for nothing. Compare the `cstring`s directly.
+- `for value, index in` - the index comes second. It's the opposite of what people coming from Rust or Go expect.
 - Anything returned by `make` needs a matching `delete`. If a proc returns a slice it allocated, the caller is responsible for freeing it; use `defer delete(...)` at the call site.
 - Always use `vk_check` to verify result of a Vulkan method except when the result could be more specific like VK_SUBOPTIMAL_KHR or VK_ERROR_OUT_OF_DATE_KHR

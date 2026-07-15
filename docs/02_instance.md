@@ -1,5 +1,5 @@
 ---
-title: 02 — Instance
+title: 02 - Instance
 nav_order: 4
 ---
 
@@ -37,4 +37,4 @@ I added the `vk_check` utility method to easily inspect the result of Vulkan met
 
 ## What's next
 
-Right now if we pass Vulkan bad arguments, it'll happily return `VK_SUCCESS` and nothing — no warning, no error, just silently wrong output. That's because we haven't enabled a **validation layer** yet. In [03 - Validation Layers](./03_validation_layers.md) we finally enable `VK_LAYER_KHRONOS_validation`, so Vulkan starts telling us when we mess up.
+Right now if we pass Vulkan bad arguments, it'll happily return `VK_SUCCESS` and nothing - no warning, no error, just silently wrong output. That's because we haven't enabled a **validation layer** yet. In [03 - Validation Layers](./03_validation_layers.md) we finally enable `VK_LAYER_KHRONOS_validation`, so Vulkan starts telling us when we mess up.

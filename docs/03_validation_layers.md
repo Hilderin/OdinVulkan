@@ -1,5 +1,5 @@
 ---
-title: 03 — Validation Layers
+title: 03 - Validation Layers
 nav_order: 5
 ---
 
@@ -13,14 +13,14 @@ The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/02_Validation_layers.html>
 - vulkan-tutorial.com version: <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Validation_layers>
 
-IMPORTANT: Normally validation layers are only enabled in debug builds — they add overhead for no benefit in production. Here, for the tutorial, they're always on for simplicity.
+IMPORTANT: Normally validation layers are only enabled in debug builds - they add overhead for no benefit in production. Here, for the tutorial, they're always on for simplicity.
 
 ---
 
 ## What's new, in one glance
-- `are_layers_supported` — checks that the required layers are installed.
-- `debug_callback` — a function Vulkan calls every time a validation message is emitted.
-- `VK_EXT_debug_utils` extension + `VkDebugUtilsMessengerEXT` — the handle that routes messages to your callback.
+- `are_layers_supported` - checks that the required layers are installed.
+- `debug_callback` - a function Vulkan calls every time a validation message is emitted.
+- `VK_EXT_debug_utils` extension + `VkDebugUtilsMessengerEXT` - the handle that routes messages to your callback.
 - The messenger is set up *twice*: once chained into `vkCreateInstance` (to catch messages during instance creation), then a permanent one right after.
 
 ---
@@ -54,8 +54,8 @@ debug_callback :: proc "system" (
 
 Two important Odin-specific things here:
 
-- **`"system"` calling convention** — the callback is called from C code inside the Vulkan loader, not from Odin. Without this annotation the ABI won't match.
-- **`context = runtime.default_context()`** — callbacks with `"system"` convention don't have an Odin context set. If we use `fmt.eprintfln` or anything that needs the context, we must set it first. Without this line the program will crash on the first validation message.
+- **`"system"` calling convention** - the callback is called from C code inside the Vulkan loader, not from Odin. Without this annotation the ABI won't match.
+- **`context = runtime.default_context()`** - callbacks with `"system"` convention don't have an Odin context set. If we use `fmt.eprintfln` or anything that needs the context, we must set it first. Without this line the program will crash on the first validation message.
 
 The callback checks each severity against the global `debug_level` to control verbosity.
 

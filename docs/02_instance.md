@@ -7,7 +7,7 @@ nav_order: 4
 
 The first thing we need to do is initialize the Vulkan API instance. Without that, nothing can work.
 
-The full source for this step lives in `src/02_instance/main.odin`.
+The full source for this step lives in [src/02_instance/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/02_instance/main.odin).
 
 I'm not going to go over every line of code, the Khronos tutorial does an excellent job here of explaining how to get the instance.
 

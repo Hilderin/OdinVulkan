@@ -9,7 +9,7 @@ The swapchain now owns a pool of `vk.Image` handles, but you don't draw into raw
 
 This step wraps every swapchain image in its own view. Nothing visible changes yet - several steps still stand between us and the first triangle (shaders, the graphics pipeline, framebuffers), but the views are the last image-related piece of setup.
 
-The full source for this step lives in `src/09_image_views/main.odin`.
+The full source for this step lives in [src/09_image_views/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/09_image_views/main.odin).
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/01_Presentation/02_Image_views.html>
@@ -105,4 +105,4 @@ The window is still blank - no rendering yet - but every piece of plumbing a fra
 
 ## What's next
 
-With image views in hand, the next step is creating shaders - the shaders and fixed-function state that turn "draw a triangle" into actual GPU work. First step for using shaders is compiling then, that's [10 - Shaders Compilation](./10_shaders_compilation.md).
+With image views in hand, the next step is creating shaders - the shaders and fixed-function state that turn "draw a triangle" into actual GPU work. First step for using shaders is compiling them, that's [10 - Shaders Compilation](./10_shaders_compilation.md).

@@ -1,13 +1,13 @@
 ---
-title: 04 - Physical Device Selection
+title: 04 - Physical Device
 nav_order: 6
 ---
 
-# 04 – Physical Device Selection
+# 04 – Physical Device
 
 We have a Vulkan instance, but it's just a handle - it doesn't know which GPU we want to use. This step enumerates the available physical devices, checks that they support what we need, and picks the best one.
 
-The full source for this step lives in `src/04_physical_device/main.odin`.
+The full source for this step lives in [src/04_physical_device/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/04_physical_device/main.odin).
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/03_Physical_devices_and_queue_families.html>

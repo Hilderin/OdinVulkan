@@ -7,7 +7,7 @@ nav_order: 9
 
 We now have a Vulkan instance and a window, but they don't know about each other. The `VkSurfaceKHR` is the bridge - a platform-agnostic handle that says "this is the thing Vulkan can present images to". Once it exists, we can finally ask a physical device: "can you draw to this window?"
 
-The full source for this step lives in `src/07_surface/main.odin`.
+The full source for this step lives in [src/07_surface/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/07_surface/main.odin).
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/01_Presentation/00_Window_surface.html>

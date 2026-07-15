@@ -11,7 +11,7 @@ So I wrote a small `shader_compiler.odin` that wraps the `slangc` executable bun
 
 Compilation is fast for the shader sizes this tutorial deals with, and the error messages slangc prints are very readable. I could have linked against the `slangc` library instead of using the executable, but that would have meant wiring up a fair amount of C API for very little gain in this project.
 
-The full source for this step lives in `src/10_shaders_compilation/main.odin` and `src/10_shaders_compilation/shader_compiler.odin`. We'll reuse `shader_compiler.odin` unchanged from the next step onward.
+The full source for this step lives in [src/10_shaders_compilation/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/10_shaders_compilation/main.odin) and [src/10_shaders_compilation/shader_compiler.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/10_shaders_compilation/shader_compiler.odin). We'll reuse `shader_compiler.odin` unchanged from the next step onward.
 
 Useful references:
 - Slang language: <https://shader-slang.org>

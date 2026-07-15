@@ -9,7 +9,8 @@ Step 10 gave us a SPIR-V blob in memory but no Vulkan call touched it. This step
 
 A detail worth noting: the Slang setup compiles `vertMain` and `fragMain` into a *single* `.spv` blob, and we feed that whole blob to one `vk.ShaderModule`. Vulkan is fine with this - a module can hold several entry points, and the pipeline stage state later picks the one it wants by name. The Original C++ tutorial instead produces two separate modules (one per stage), because it compiles one GLSL file per stage. Same end result, fewer files here.
 
-The full source for this step lives in `src/11_shader_module/main.odin`. The `shader_compiler.odin` from step 10 is reused unchanged.
+The full source for this step lives in 
+[src/11_shader_module/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/11_shader_module/main.odin). The `shader_compiler.odin` from step 10 is reused unchanged.
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/02_Graphics_pipeline_basics/01_Shader_modules.html>
@@ -22,27 +23,6 @@ The corresponding chapters in the Vulkan Tutorial are:
 - `create_shader_module` - compiles the `.slang` file, builds a `vk.ShaderModuleCreateInfo`, and calls `vk.CreateShaderModule`. Returns the single module handle.
 - `main` calls it right after the image views, with `"shader.slang"` and the `{"vertMain", "fragMain"}` entry-point list.
 - Cleanup gets a `vk.DestroyShaderModule` call before the device goes.
-
----
-
-## `vk.CreateShaderModule`, and the `pCode` / `codeSize` mismatch
-
-The struct is small, but two fields look contradictory at first glance:
-
-```c
-create_info := vk.ShaderModuleCreateInfo {
-	sType    = .SHADER_MODULE_CREATE_INFO,
-	codeSize = len(spv),
-	pCode    = raw_data(slice.reinterpret([]u32, spv)),
-}
-```
-
-- **`pCode`** wants a pointer to `u32`. Vulkan reads SPIR-V as 32-bit words, not bytes. Our blob comes back from `compile_slang_shader` as `[]u8`.
-- **`codeSize`** is in *bytes*, even though `pCode` is a `u32` pointer. That's a real Vulkan quirk: the field name says "size" and the type says "words" - don't divide by 4. `len(spv)` (byte count) is correct.
-
-The first point is where Odin-specific care shows up. `slice.reinterpret` from `core:slice` gives us the same backing memory typed as `[]u32` - no copy, no allocation, just a different view of the bytes. `raw_data` then hands its pointer to Vulkan. If you ever skip the reinterpret and just pass `raw_data(spv)` directly, the compiler's type checker will catch it (the field wants `^u32`), which is the kind of safety net that makes this less painful than it is in C.
-
-The SPIR-V byte length being a multiple of 4 isn't an accident - SPIR-V is specified as a stream of 32-bit words, so a well-formed blob always reinterprets cleanly. If `slangc` somehow handed us a length that wasn't word-aligned, `slice.reinterpret` would assert at runtime, which is preferable to feeding garbage to the driver.
 
 ---
 

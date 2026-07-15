@@ -7,7 +7,7 @@ nav_order: 5
 
 Vulkan doesn't validate anything by default. If you pass wrong parameters, it'll happily return `VK_SUCCESS` or silently give you undefined behavior. **Validation layers** hook into Vulkan calls and check for mistakes at runtime.
 
-The full source for this step lives in `src/03_validation_layers/main.odin`.
+The full source for this step lives in [src/03_validation_layers/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/03_validation_layers/main.odin).
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/02_Validation_layers.html>

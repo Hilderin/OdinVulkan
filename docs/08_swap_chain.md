@@ -7,7 +7,7 @@ nav_order: 10
 
 The surface exists, but Vulkan still has nothing to draw into. The swapchain is the pool of images the presentation engine cycles through to put frames on the window. This step queries what the surface can actually do, picks sane values out of the answers, and creates the swapchain along with the images it owns.
 
-The full source for this step lives in `src/08_swap_chain/main.odin`.
+The full source for this step lives in [src/08_swap_chain/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/08_swap_chain/main.odin).
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/01_Presentation/01_Swap_chain.html>

@@ -9,7 +9,7 @@ The Vulkan Tutorial bundles window creation into the instance chapter - "set up 
 
 So this step does one thing: with Vulkan already initialized (instance + physical device + logical device), we create a GLFW window and run a minimal event loop. No surface yet, no swapchain - just a window that sits there until you close it or hit Escape.
 
-The full source for this step lives in `src/06_create_window/main.odin`.
+The full source for this step lives in [src/06_create_window/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/06_create_window/main.odin).
 
 ---
 
@@ -107,6 +107,10 @@ Vulkan teardown is unchanged from step 05. The new bits go *after* Vulkan: the w
 ## Test it
 
 A 512x512 window titled "My first window" should appear and stay until you close it or hit Escape.
+
+Not very sexy, but here it is:
+
+![My first window](./assets/06_create_window.png)
 
 ---
 

@@ -9,7 +9,7 @@ This first step isn't going to render anything. Before we go further, we want to
 
 Think of this as a sanity check. If something is wrong with the setup, better to find out now than three chapters in.
 
-The full source for this step lives in `src/01_test_setup/main.odin`. Open it side by side with this doc.
+The full source for this step lives in [src/01_test_setup/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/01_test_setup/main.odin). Open it side by side with this doc.
 
 
 ## What we want to accomplish

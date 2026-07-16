@@ -407,7 +407,7 @@ create_window :: proc() -> glfw.WindowHandle {
 	glfw.WindowHint(glfw.RESIZABLE, 1)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
-	window := glfw.CreateWindow(512, 512, "Vulkan in movement", nil, nil)
+	window := glfw.CreateWindow(512, 512, "Let's go 3D with a spin", nil, nil)
 	if window == nil {
 		fmt.eprintln("Unable to create window")
 		os.exit(1)

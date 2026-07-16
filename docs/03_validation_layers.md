@@ -127,4 +127,4 @@ To see the layers in action, remove the `vk.DestroyDebugUtilsMessengerEXT` call 
 
 ## What's next
 
-[04 - Setup Device](./04_setup_device.md) introduces physical device selection and logical device creation, which is where we pick which GPU to use and configure what it can do.
+[04 - Physical Device](./04_physical_device.md) introduces physical device selection and logical device creation, which is where we pick which GPU to use and configure what it can do.

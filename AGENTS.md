@@ -25,7 +25,7 @@ DO:
   1. Short intro: what this step is about and why it matters.
   2. "What we want to prove" / goal of the step.
   3. "The code, step by step": each code block explained, line by line when useful.
-  4. "Run it": the exact command and the expected output.
+  4. "Test it": what to expect from the startup log and the window, plus the common errors and pitfalls for this step. No build/run commands - keep it simple.
   5. "What's next": a short teaser for the next step.
 
 DON'T:

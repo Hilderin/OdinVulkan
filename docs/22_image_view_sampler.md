@@ -31,6 +31,7 @@ An image view tells the GPU how to interpret the raw pixels of an image: which f
 
 Until now, image views were built by `create_image_views` (plural): one proc that took the swap chain images, looped, and filled a `[]vk.ImageView`. That was fine when every view belonged to the swap chain, but the texture is a single image and creating a one-element slice just to call a plural proc felt wrong. So the singular case is now its own proc, and the plural one delegates to it:
 
+{% raw %}
 ```c
 create_image_view :: proc(device: vk.Device, image: vk.Image, format: vk.Format) -> vk.ImageView {
 	create_info := vk.ImageViewCreateInfo {
@@ -53,6 +54,7 @@ create_image_views :: proc(device: vk.Device, images: []vk.Image, format: vk.For
 	return image_views
 }
 ```
+{% endraw %}
 
 ---
 

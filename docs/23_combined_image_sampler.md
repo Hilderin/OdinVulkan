@@ -150,6 +150,7 @@ create_descriptor_pool :: proc(device: vk.Device, pool_sizes: []vk.DescriptorPoo
 
 The pool is still an arena - you tell it up front how many of each descriptor type you'll need and the max number of sets total - it just now accepts more than one type. The call in `main` passes both:
 
+{% raw %}
 ```c
 descriptor_pool := create_descriptor_pool(
 	device,
@@ -158,6 +159,7 @@ descriptor_pool := create_descriptor_pool(
 	NB_FRAMES_IN_FLIGHT,
 )
 ```
+{% endraw %}
 
 One UBO descriptor and one image sampler descriptor per frame in flight, and `NB_FRAMES_IN_FLIGHT` sets total. Run out of either and descriptor allocation fails.
 

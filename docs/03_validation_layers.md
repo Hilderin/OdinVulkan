@@ -15,6 +15,8 @@ The corresponding chapters in the Vulkan Tutorial are:
 
 IMPORTANT: Normally validation layers are only enabled in debug builds - they add overhead for no benefit in production. Here, for the tutorial, they're always on for simplicity.
 
+For more information on Validation layer and how to configure it: <https://vulkan.lunarg.com/doc/view/latest/windows/khronos_validation_layer.html>
+
 ---
 
 ## What's new, in one glance

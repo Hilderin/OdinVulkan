@@ -978,7 +978,7 @@ record_command_buffer :: proc(
 		.UNDEFINED, // old_layout
 		.COLOR_ATTACHMENT_OPTIMAL, // new_layout
 		{}, // src_access_mask
-		{.COLOR_ATTACHMENT_WRITE}, // dst_access_mMask
+		{.COLOR_ATTACHMENT_WRITE}, // dst_access_mask
 		{.COLOR_ATTACHMENT_OUTPUT}, // src_stage
 		{.COLOR_ATTACHMENT_OUTPUT}, // dst_stage
 		{.COLOR}, //image_aspect_flags
@@ -991,7 +991,7 @@ record_command_buffer :: proc(
 		.UNDEFINED, // old_layout
 		.DEPTH_STENCIL_ATTACHMENT_OPTIMAL, // new_layout
 		{.DEPTH_STENCIL_ATTACHMENT_WRITE}, // src_access_mask
-		{.DEPTH_STENCIL_ATTACHMENT_WRITE}, // dst_access_mMask
+		{.DEPTH_STENCIL_ATTACHMENT_WRITE}, // dst_access_mask
 		{.EARLY_FRAGMENT_TESTS, .LATE_FRAGMENT_TESTS}, // src_stage
 		{.EARLY_FRAGMENT_TESTS, .LATE_FRAGMENT_TESTS}, // dst_stage
 		{.DEPTH}, //image_aspect_flags
@@ -1435,8 +1435,8 @@ update_uniform_buffer :: proc(start_time: time.Tick, ubo_map_memory_ptr: rawptr,
 		view  = la.matrix4_look_at(vec3{2.0, 2.0, 2.0}, vec3{0.0, 0.0, 0.0}, vec3{0.0, 0.0, 1.0}),
 		// Vulkan's depth range is [0, 1], not OpenGL's [-1, 1]. core:math/linalg's matrix4_perspective
 		// produces the OpenGL range and has no equivalent of GLM_FORCE_DEPTH_ZERO_TO_ONE,
-		// so we use a custom perspective proc that bakes the Vulkan Z range and the Y flip in.
-		proj  = perspective(math.to_radians_f32(45.0), aspect, 0.1, 10.0),
+		// so we use a custom matrix4_perspective_vulkan proc that bakes the Vulkan Z range and the Y flip in.
+		proj  = matrix4_perspective_vulkan(math.to_radians_f32(45.0), aspect, 0.1, 10.0),
 	}
 
 	// The uniform buffer is typed so we can just assign the new ubo at the rawptr which will copy the ubo value
@@ -1445,10 +1445,10 @@ update_uniform_buffer :: proc(start_time: time.Tick, ubo_map_memory_ptr: rawptr,
 }
 
 
-perspective :: proc(fovy, aspect, near, far: f32) -> (m: mat4) {
-	f := 1 / math.tan(fovy * 0.5)
-	m[0, 0] = f / aspect
-	m[1, 1] = -f
+matrix4_perspective_vulkan :: proc(fovy, aspect, near, far: f32) -> (m: mat4) {
+	tan_half_fovy := math.tan(0.5 * fovy)
+	m[0, 0] = 1 / (aspect * tan_half_fovy)
+	m[1, 1] = -1 / (tan_half_fovy)
 	m[2, 2] = -far / (far - near)
 	m[3, 2] = -1
 	m[2, 3] = -(far * near) / (far - near)
@@ -1685,7 +1685,7 @@ has_stencil_component :: proc(format: vk.Format) -> bool {
 	return format == .D32_SFLOAT_S8_UINT || format == .D32_SFLOAT_S8_UINT
 }
 
-create_depth_ressources :: proc(
+create_depth_resources :: proc(
 	physical_device: vk.PhysicalDevice,
 	device: vk.Device,
 	depth_format: vk.Format,
@@ -1711,7 +1711,7 @@ create_depth_ressources :: proc(
 	return depth_image, depth_image_memory, depth_image_view
 }
 
-destroy_depth_ressources :: proc(device: vk.Device, depth_image: vk.Image, depth_image_memory: vk.DeviceMemory, depth_image_view: vk.ImageView) {
+destroy_depth_resources :: proc(device: vk.Device, depth_image: vk.Image, depth_image_memory: vk.DeviceMemory, depth_image_view: vk.ImageView) {
 	vk.DestroyImageView(device, depth_image_view, nil)
 	vk.FreeMemory(device, depth_image_memory, nil)
 	vk.DestroyImage(device, depth_image, nil)
@@ -1759,10 +1759,10 @@ main :: proc() {
 	swap_chain_image_views := create_image_views(device, swap_chain_images, swap_chain_format)
 	fmt.println("Swap chain images views... OK")
 
-	// Depth ressources
+	// Depth resources
 	depth_format := find_depth_format(physical_device)
-	depth_image, depth_image_memory, depth_image_view := create_depth_ressources(physical_device, device, depth_format, swap_chain_extent)
-	fmt.println("Depth ressource... OK")
+	depth_image, depth_image_memory, depth_image_view := create_depth_resources(physical_device, device, depth_format, swap_chain_extent)
+	fmt.println("Depth resource... OK")
 
 	// Create shader module
 	shader_module := create_shader_module(device, "shader.slang", {"vertMain", "fragMain"})
@@ -1953,7 +1953,7 @@ main :: proc() {
 			framebuffer_resized = false
 			wait_idle_device(device)
 
-			destroy_depth_ressources(device, depth_image, depth_image_memory, depth_image_view)
+			destroy_depth_resources(device, depth_image, depth_image_memory, depth_image_view)
 			destroy_swap_chain_image_views(device, swap_chain_image_views)
 			destroy_swap_chain_images(device, swap_chain_images)
 			destroy_swap_chain(device, swap_chain)
@@ -1961,7 +1961,7 @@ main :: proc() {
 			swap_chain, swap_chain_extent, swap_chain_format = create_swap_chain(physical_device, device, surface, window)
 			swap_chain_images = get_swap_chain_images(device, swap_chain)
 			swap_chain_image_views = create_image_views(device, swap_chain_images, swap_chain_format)
-			depth_image, depth_image_memory, depth_image_view = create_depth_ressources(physical_device, device, depth_format, swap_chain_extent)
+			depth_image, depth_image_memory, depth_image_view = create_depth_resources(physical_device, device, depth_format, swap_chain_extent)
 
 
 			fmt.println("Swap chain recreation... OK")
@@ -2041,7 +2041,7 @@ main :: proc() {
 		vk.DestroyShaderModule(device, shader_module, nil)
 	}
 
-	destroy_depth_ressources(device, depth_image, depth_image_memory, depth_image_view)
+	destroy_depth_resources(device, depth_image, depth_image_memory, depth_image_view)
 	destroy_swap_chain_image_views(device, swap_chain_image_views)
 	destroy_swap_chain_images(device, swap_chain_images)
 	destroy_swap_chain(device, swap_chain)

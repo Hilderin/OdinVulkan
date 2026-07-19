@@ -958,7 +958,7 @@ record_command_buffer :: proc(
 		.UNDEFINED, // old_layout
 		.COLOR_ATTACHMENT_OPTIMAL, // new_layout
 		{}, // src_access_mask
-		{.COLOR_ATTACHMENT_WRITE}, // dst_access_mMask
+		{.COLOR_ATTACHMENT_WRITE}, // dst_access_mask
 		{.COLOR_ATTACHMENT_OUTPUT}, // src_stage
 		{.COLOR_ATTACHMENT_OUTPUT}, // dst_stage
 	)

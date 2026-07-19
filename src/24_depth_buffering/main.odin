@@ -421,7 +421,7 @@ create_window :: proc() -> glfw.WindowHandle {
 	glfw.WindowHint(glfw.RESIZABLE, 1)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
-	window := glfw.CreateWindow(512, 512, "Around and around the statue", nil, nil)
+	window := glfw.CreateWindow(512, 512, "A little bit of depth", nil, nil)
 	if window == nil {
 		fmt.eprintln("Unable to create window")
 		os.exit(1)
@@ -618,6 +618,7 @@ create_graphics_pipeline :: proc(
 	fragment_entry_point: string,
 	swap_chain_format: vk.Format,
 	descriptor_set_layout: vk.DescriptorSetLayout,
+	depth_format: vk.Format,
 ) -> (
 	vk.Pipeline,
 	vk.PipelineLayout,
@@ -714,13 +715,13 @@ create_graphics_pipeline :: proc(
 
 	// -----------------------------------
 	// Depth and stencil testing
-	// depth_stencil := vk.PipelineDepthStencilStateCreateInfo {
-	// 	depthTestEnable       = true,
-	// 	depthWriteEnable      = true,
-	// 	depthCompareOp        = .LESS,
-	// 	depthBoundsTestEnable = false,
-	// 	stencilTestEnable     = false,
-	// }
+	depth_stencil := vk.PipelineDepthStencilStateCreateInfo {
+		depthTestEnable       = true,
+		depthWriteEnable      = true,
+		depthCompareOp        = .LESS,
+		depthBoundsTestEnable = false,
+		stencilTestEnable     = false,
+	}
 
 	// -----------------------------------
 	// Color blending
@@ -780,6 +781,7 @@ create_graphics_pipeline :: proc(
 		sType                   = .PIPELINE_RENDERING_CREATE_INFO,
 		colorAttachmentCount    = 1,
 		pColorAttachmentFormats = &format,
+		depthAttachmentFormat   = depth_format,
 	}
 
 	// -----------------------------------
@@ -799,7 +801,7 @@ create_graphics_pipeline :: proc(
 		pDynamicState       = &dynamic_state_create_info,
 		layout              = pipeline_layout,
 		renderPass          = 0, // must be null for dynamic rendering
-		//pDepthStencilState  = &depth_stencil,
+		pDepthStencilState  = &depth_stencil,
 		pNext               = &pipeline_rendering_create_info,
 	}
 
@@ -901,14 +903,14 @@ begin_rendering :: proc(command_buffer: vk.CommandBuffer, image_view: vk.ImageVi
 		clearValue = {color = {float32 = {0.0, 0.0, 0.0, 1.0}}},
 	}
 
-	// depth_attachment_info := vk.RenderingAttachmentInfo {
-	// 	sType = .RENDERING_ATTACHMENT_INFO,
-	// 	imageView = depth_image_view,
-	// 	imageLayout = .DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-	// 	loadOp = .CLEAR,
-	// 	storeOp = .STORE,
-	// 	clearValue = {depthStencil = {1.0, 0}},
-	// }
+	depth_attachment_info := vk.RenderingAttachmentInfo {
+		sType = .RENDERING_ATTACHMENT_INFO,
+		imageView = depth_image_view,
+		imageLayout = .DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		loadOp = .CLEAR,
+		storeOp = .DONT_CARE,
+		clearValue = {depthStencil = {1.0, 0}},
+	}
 
 	render_info := vk.RenderingInfo {
 		sType = .RENDERING_INFO,
@@ -916,7 +918,7 @@ begin_rendering :: proc(command_buffer: vk.CommandBuffer, image_view: vk.ImageVi
 		renderArea = {extent = swap_chain_extent},
 		pColorAttachments = &attachment_info,
 		colorAttachmentCount = 1,
-		//pDepthAttachment = &depth_attachment_info,
+		pDepthAttachment = &depth_attachment_info,
 	}
 	vk.CmdBeginRendering(command_buffer, &render_info)
 }
@@ -1431,11 +1433,11 @@ update_uniform_buffer :: proc(start_time: time.Tick, ubo_map_memory_ptr: rawptr,
 	ubo := Uniform_Buffer_Object {
 		model = la.matrix4_rotate(angle, vec3{0.0, 0.0, 1.0}),
 		view  = la.matrix4_look_at(vec3{2.0, 2.0, 2.0}, vec3{0.0, 0.0, 0.0}, vec3{0.0, 0.0, 1.0}),
-		proj  = la.matrix4_perspective(math.to_radians_f32(45.0), aspect, 0.1, 10.0),
+		// Vulkan's depth range is [0, 1], not OpenGL's [-1, 1]. core:math/linalg's matrix4_perspective
+		// produces the OpenGL range and has no equivalent of GLM_FORCE_DEPTH_ZERO_TO_ONE,
+		// so we use a custom perspective proc that bakes the Vulkan Z range and the Y flip in.
+		proj  = perspective(math.to_radians_f32(45.0), aspect, 0.1, 10.0),
 	}
-
-	// Fix Vulkan : Y axis is inverted compared to OpenGL.
-	ubo.proj[1, 1] *= -1
 
 	// The uniform buffer is typed so we can just assign the new ubo at the rawptr which will copy the ubo value
 	mapped_ubo := cast(^Uniform_Buffer_Object)ubo_map_memory_ptr
@@ -1683,9 +1685,16 @@ has_stencil_component :: proc(format: vk.Format) -> bool {
 	return format == .D32_SFLOAT_S8_UINT || format == .D32_SFLOAT_S8_UINT
 }
 
-create_depth_ressources :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, swap_chain_extent: vk.Extent2D) -> (vk.Image, vk.DeviceMemory, vk.ImageView) {
-
-	depth_format := find_depth_format(physical_device)
+create_depth_ressources :: proc(
+	physical_device: vk.PhysicalDevice,
+	device: vk.Device,
+	depth_format: vk.Format,
+	swap_chain_extent: vk.Extent2D,
+) -> (
+	vk.Image,
+	vk.DeviceMemory,
+	vk.ImageView,
+) {
 
 	depth_image, depth_image_memory := create_image(
 		physical_device,
@@ -1751,7 +1760,8 @@ main :: proc() {
 	fmt.println("Swap chain images views... OK")
 
 	// Depth ressources
-	depth_image, depth_image_memory, depth_image_view := create_depth_ressources(physical_device, device, swap_chain_extent)
+	depth_format := find_depth_format(physical_device)
+	depth_image, depth_image_memory, depth_image_view := create_depth_ressources(physical_device, device, depth_format, swap_chain_extent)
 	fmt.println("Depth ressource... OK")
 
 	// Create shader module
@@ -1775,7 +1785,7 @@ main :: proc() {
 	fmt.println("Descriptor sets... OK")
 
 	// Create graphics pipeline
-	graphics_pipeline, pipeline_layout := create_graphics_pipeline(device, shader_module, "vertMain", "fragMain", swap_chain_format, ubo_descriptor_set_layout)
+	graphics_pipeline, pipeline_layout := create_graphics_pipeline(device, shader_module, "vertMain", "fragMain", swap_chain_format, ubo_descriptor_set_layout, depth_format)
 	fmt.println("Graphics pipeline... OK")
 
 	// Command pool
@@ -1951,7 +1961,7 @@ main :: proc() {
 			swap_chain, swap_chain_extent, swap_chain_format = create_swap_chain(physical_device, device, surface, window)
 			swap_chain_images = get_swap_chain_images(device, swap_chain)
 			swap_chain_image_views = create_image_views(device, swap_chain_images, swap_chain_format)
-			depth_image, depth_image_memory, depth_image_view = create_depth_ressources(physical_device, device, swap_chain_extent)
+			depth_image, depth_image_memory, depth_image_view = create_depth_ressources(physical_device, device, depth_format, swap_chain_extent)
 
 
 			fmt.println("Swap chain recreation... OK")

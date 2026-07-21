@@ -139,6 +139,7 @@ if ((format_props.optimalTilingFeatures & {.SAMPLED_IMAGE_FILTER_LINEAR}) != {.S
 
 ### The barrier
 
+{% raw %}
 ```c
 barrier := vk.ImageMemoryBarrier {
     sType               = .IMAGE_MEMORY_BARRIER,
@@ -148,6 +149,7 @@ barrier := vk.ImageMemoryBarrier {
     subresourceRange    = {{.COLOR}, 0, 1, 0, 1},
 }
 ```
+{% endraw %}
 
 One struct, reused for every transition. `levelCount = 1` because we transition one level per iteration, `baseMipLevel` gets rewritten each time.
 
@@ -166,6 +168,7 @@ for i in 1 ..< mip_levels {
 
 Level `i-1` was just written as a destination (by the staging copy for `i=1`, or the previous blit). Now it needs to become a source: `TRANSFER_DST_OPTIMAL -> TRANSFER_SRC_OPTIMAL`. Both stages are `.TRANSFER`, no shader involved yet.
 
+{% raw %}
 ```c
     blit := vk.ImageBlit {
         srcOffsets     = {{0, 0, 0}, {i32(mip_width), i32(mip_height), 1}},
@@ -176,6 +179,7 @@ Level `i-1` was just written as a destination (by the staging copy for `i=1`, or
 
     vk.CmdBlitImage(command_buffer, image, .TRANSFER_SRC_OPTIMAL, image, .TRANSFER_DST_OPTIMAL, 1, &blit, .LINEAR)
 ```
+{% endraw %}
 
 Same image is both source and destination - fine, the subresources are different levels. `srcOffsets[1]` is the extent of level `i-1`, `dstOffsets[1]` is half that (the extent of level `i`). The `> 1 ? ... / 2 : 1` guards stop a 1px side from halving to 0 at the bottom of the chain.
 

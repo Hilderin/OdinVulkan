@@ -24,7 +24,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | # | Doc | What it covers |
 |---|-----|----------------|
 | 01 | [Test Setup](./01_test_setup.md) | Sanity check: GLFW, Vulkan instance, SDK path, validation layers, slang compiler. |
-| 02 | [Instance](./02_ instance.md) | Wrap instance creation in a procedure, query GLFW extensions, target Vulkan 1.4, destroy the instance on exit. |
+| 02 | [Instance](./02_instance.md) | Wrap instance creation in a procedure, query GLFW extensions, target Vulkan 1.4, destroy the instance on exit. |
 | 03 | [Validation Layers](./03_validation_layers.md) | Enable `VK_LAYER_KHRONOS_validation`, add a debug messenger so Vulkan tells you when you mess up. |
 | 04 | [Physical Device](./04_physical_device.md) | Pick a GPU that supports Vulkan and meets basic requirements (dedicated vs integrated, queues, features). |
 | 05 | [Logical Device](./05_logical_device.md) | Create a logical device from the physical one, request graphics and present queues. |
@@ -34,15 +34,22 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 09 | [Image Views](./09_image_views.md) | Wrap each swap chain image in an image view so the pipeline can use them as render targets. |
 | 10 | [Shaders Compilation](./10_shaders_compilation.md) | Compile Slang shaders to SPIR-V using `slangc` at run time. |
 | 11 | [Shader Module](./11_shader_module.md) | Load the compiled SPIR-V into `VkShaderModule` objects. |
-| 12 | [Graphics Pipeline](./12_graphics_pipeline.md) | The big one - vertex input, input assembly, rasterizer, multisampling, depth/stencil, color blend, layout, render pass. |
+| 12 | [Graphics Pipeline](./12_graphics_pipeline.md) | The big one - fixed-function stages (vertex input, input assembly, rasterizer, multisampling, color blend) plus pipeline layout, no render pass thanks to dynamic rendering. |
 | 13 | [Command Buffers](./13_command_buffers.md) | Allocate and record command buffers that record the draw calls. |
-| 14 | [Presentation - First Triangle](./14_presentation_first_triangle.md) | Submit command buffers, present the image, see a triangle on screen. |
+| 14 | [Presentation and First Triangle](./14_presentation_first_triangle.md) | Submit command buffers, present the image, see a triangle on screen. |
 | 15 | [Frames In Flight](./15_frames_in_flight.md) | Multiple frames in flight with fences and semaphores so the GPU stays fed. |
 | 16 | [Swap Chain Recreation](./16_swap_chain_recreation.md) | Handle window resize: rebuild the swap chain without restarting the app. |
 | 17 | [Vertex Input](./17_vertex_input.md) | Pass per-vertex data through vertex buffers instead of hard-coding it in the shader. |
 | 18 | [Staging Buffer](./18_staging_buffer.md) | Use a host-visible staging buffer to upload data to device-local memory. |
 | 19 | [Index Buffer](./19_index_buffer.md) | Indexed drawing to reuse vertices. |
 | 20 | [Uniform Buffers](./20_uniform_buffers.md) | Per-frame uniform buffers for transformation matrices and other constants. |
+| 21 | [Images](./21_images.md) | Create a Vulkan image from a JPEG file and copy its pixels into GPU-local memory, first step toward texturing. |
+| 22 | [Image view and sampler](./22_image_view_sampler.md) | Wrap the texture image in an image view and a sampler so a shader can read it; not wired into the pipeline yet. |
+| 23 | [Combined image sampler](./23_combined_image_sampler.md) | Wire the texture into the pipeline: a second descriptor binding, a `texCoord` attribute, and a shader that samples it. |
+| 24 | [Depth Buffering](./24_depth_buffering.md) | Add a real depth buffer and a second quad so the GPU can sort front-to-back; clean up the projection matrix. |
+| 25 | [Loading Models](./25_loading_models.md) | Load the viking room mesh from a `.obj` file into the existing vertex and index buffers. |
+| 26 | [Mipmaps](./26_mipmaps.md) | Generate a mip chain at load time so distant fragments sample smaller, pre-filtered copies of the texture. |
+| 27 | [Multisampling](./27_multisampling.md) | Enable MSAA so triangle edges at the silhouette stop staircase-shimmering. |
 
 ## References
 

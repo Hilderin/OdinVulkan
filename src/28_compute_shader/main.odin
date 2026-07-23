@@ -899,12 +899,7 @@ transition_image_layout :: proc(
 	vk.CmdPipelineBarrier2(command_buffer, &dependency_info)
 }
 
-begin_rendering :: proc(
-	command_buffer: vk.CommandBuffer,
-	swap_chain_image_view: vk.ImageView,
-	swap_chain_extent: vk.Extent2D,
-	depth_image_view: vk.ImageView,
-) {
+begin_rendering :: proc(command_buffer: vk.CommandBuffer, swap_chain_image_view: vk.ImageView, swap_chain_extent: vk.Extent2D, depth_image_view: vk.ImageView) {
 
 	attachment_info := vk.RenderingAttachmentInfo {
 		sType = .RENDERING_ATTACHMENT_INFO,
@@ -1481,7 +1476,6 @@ create_image :: proc(
 	height: u32,
 	mip_levels: u32,
 	samples: vk.SampleCountFlags,
-	depth: u32,
 	format: vk.Format,
 	usage: vk.ImageUsageFlags,
 	properties: vk.MemoryPropertyFlags,
@@ -1494,7 +1488,7 @@ create_image :: proc(
 	image_info := vk.ImageCreateInfo {
 		sType = .IMAGE_CREATE_INFO,
 		imageType = .D2,
-		extent = {width = width, height = height, depth = depth},
+		extent = {width = width, height = height, depth = 1},
 		mipLevels = mip_levels,
 		arrayLayers = 1,
 		format = format,
@@ -1576,7 +1570,7 @@ create_texture_image :: proc(
 	img.destroy(src_image)
 
 	// Destination image
-	image, image_memory := create_image(physical_device, device, width, height, mip_levels, {._1}, 1, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
+	image, image_memory := create_image(physical_device, device, width, height, mip_levels, {._1}, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
 
 
 	// We can use the same command buffer to do: transition -> transfer -> transition, the barriers are used to synchronize the commands.
@@ -1792,7 +1786,6 @@ create_depth_resources :: proc(
 		swap_chain_extent.height,
 		1,
 		samples,
-		1,
 		depth_format,
 		{.DEPTH_STENCIL_ATTACHMENT},
 		{.DEVICE_LOCAL},

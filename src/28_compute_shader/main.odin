@@ -793,7 +793,6 @@ create_graphics_pipeline :: proc(
 	// -----------------------------------
 	// Graphics Pipeline
 	// Finally!! We create the pipeline that will be used to render!
-
 	pipeline_create_info := vk.GraphicsPipelineCreateInfo {
 		sType               = .GRAPHICS_PIPELINE_CREATE_INFO,
 		stageCount          = 2,
@@ -1995,7 +1994,6 @@ main :: proc() {
 		device,
 		{
 			{type = .UNIFORM_BUFFER, descriptorCount = NB_FRAMES_IN_FLIGHT},
-			{type = .COMBINED_IMAGE_SAMPLER, descriptorCount = NB_FRAMES_IN_FLIGHT},
 			{type = .STORAGE_BUFFER, descriptorCount = NB_FRAMES_IN_FLIGHT * 2},
 		},
 		NB_FRAMES_IN_FLIGHT,

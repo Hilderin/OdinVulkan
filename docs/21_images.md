@@ -108,7 +108,7 @@ defer vk.FreeMemory(device, staging_buffer_memory, nil)
 
 mem_copy_to_buffer(device, staging_buffer_memory, bytes.buffer_to_bytes(&src_image.pixels))
 
-image, image_memory := create_image(physical_device, device, width, height, 1, .R8G8B8A8_SRGB, {.TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
+image, image_memory := create_image(physical_device, device, width, height, .R8G8B8A8_SRGB, {.TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
 ```
 
 Pixels go into a host-visible staging buffer the same way vertices did. Then we create the destination image in `DEVICE_LOCAL` memory, and we'll ask the GPU to copy from the staging buffer into that image.

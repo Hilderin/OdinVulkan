@@ -762,7 +762,6 @@ create_graphics_pipeline :: proc(
 
 	// -----------------------------------
 	// Pipeline layout
-	// No uniform right now, so create an empty pipeline layout. We will be back for that too in later chapter.
 	local_descriptor_set_layout := descriptor_set_layout
 	pipeline_layout_create_info := vk.PipelineLayoutCreateInfo {
 		sType                  = .PIPELINE_LAYOUT_CREATE_INFO,
@@ -789,7 +788,6 @@ create_graphics_pipeline :: proc(
 	// -----------------------------------
 	// Graphics Pipeline
 	// Finally!! We create the pipeline that will be used to render!
-
 	pipeline_create_info := vk.GraphicsPipelineCreateInfo {
 		sType               = .GRAPHICS_PIPELINE_CREATE_INFO,
 		stageCount          = 2,
@@ -1468,7 +1466,6 @@ create_image :: proc(
 	width: u32,
 	height: u32,
 	mip_levels: u32,
-	depth: u32,
 	format: vk.Format,
 	usage: vk.ImageUsageFlags,
 	properties: vk.MemoryPropertyFlags,
@@ -1481,7 +1478,7 @@ create_image :: proc(
 	image_info := vk.ImageCreateInfo {
 		sType = .IMAGE_CREATE_INFO,
 		imageType = .D2,
-		extent = {width = width, height = height, depth = depth},
+		extent = {width = width, height = height, depth = 1},
 		mipLevels = mip_levels,
 		arrayLayers = 1,
 		format = format,
@@ -1563,7 +1560,7 @@ create_texture_image :: proc(
 	img.destroy(src_image)
 
 	// Destination image
-	image, image_memory := create_image(physical_device, device, width, height, mip_levels, 1, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
+	image, image_memory := create_image(physical_device, device, width, height, mip_levels, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
 
 
 	// We can use the same command buffer to do: transition -> transfer -> transition, the barriers are used to synchronize the commands.
@@ -1776,7 +1773,6 @@ create_depth_resources :: proc(
 		device,
 		swap_chain_extent.width,
 		swap_chain_extent.height,
-		1,
 		1,
 		depth_format,
 		{.DEPTH_STENCIL_ATTACHMENT},

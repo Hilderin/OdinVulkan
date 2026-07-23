@@ -723,7 +723,6 @@ create_graphics_pipeline :: proc(
 	// -----------------------------------
 	// Graphics Pipeline
 	// Finally!! We create the pipeline that will be used to render!
-
 	pipeline_create_info := vk.GraphicsPipelineCreateInfo {
 		sType               = .GRAPHICS_PIPELINE_CREATE_INFO,
 		stageCount          = 2,

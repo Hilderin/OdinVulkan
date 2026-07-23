@@ -41,9 +41,6 @@ Vertex :: struct {
 
 // Uniform buffer Model View Projection
 Uniform_Buffer_Object :: struct {
-	model:      mat4,
-	view:       mat4,
-	proj:       mat4,
 	delta_time: f32,
 }
 
@@ -904,21 +901,15 @@ transition_image_layout :: proc(
 
 begin_rendering :: proc(
 	command_buffer: vk.CommandBuffer,
-	color_image_view: vk.ImageView,
-	resolve_image_view: vk.ImageView,
+	swap_chain_image_view: vk.ImageView,
 	swap_chain_extent: vk.Extent2D,
 	depth_image_view: vk.ImageView,
 ) {
 
 	attachment_info := vk.RenderingAttachmentInfo {
 		sType = .RENDERING_ATTACHMENT_INFO,
-		imageView = color_image_view,
+		imageView = swap_chain_image_view,
 		imageLayout = .COLOR_ATTACHMENT_OPTIMAL,
-		// The multisampled color image is resolved (averaged) into the swapchain
-		// image view at the end of rendering.
-		resolveMode = {.AVERAGE},
-		resolveImageView = resolve_image_view,
-		resolveImageLayout = .COLOR_ATTACHMENT_OPTIMAL,
 		loadOp = .CLEAR,
 		storeOp = .STORE,
 		clearValue = {color = {float32 = {0.0, 0.0, 0.0, 1.0}}},
@@ -985,8 +976,6 @@ record_command_buffer :: proc(
 	draw_count: u32,
 	depth_image: vk.Image,
 	depth_image_view: vk.ImageView,
-	color_image: vk.Image,
-	color_image_view: vk.ImageView,
 ) {
 
 	// Begin to start the recording...
@@ -1020,22 +1009,8 @@ record_command_buffer :: proc(
 		1,
 	)
 
-	// Transfert the multisampled color image to ColorAttachmentOptimal
-	transition_image_layout(
-		command_buffer,
-		color_image,
-		.UNDEFINED, // old_layout
-		.COLOR_ATTACHMENT_OPTIMAL, // new_layout
-		{.COLOR_ATTACHMENT_WRITE}, // src_access_mask
-		{.COLOR_ATTACHMENT_WRITE}, // dst_access_mask
-		{.COLOR_ATTACHMENT_OUTPUT}, // src_stage
-		{.COLOR_ATTACHMENT_OUTPUT}, // dst_stage
-		{.COLOR}, //image_aspect_flags
-		1,
-	)
-
 	// Start rendering
-	begin_rendering(command_buffer, color_image_view, image_view, swap_chain_extent, depth_image_view)
+	begin_rendering(command_buffer, image_view, swap_chain_extent, depth_image_view)
 
 	// We can now bind the graphics pipeline
 	vk.CmdBindPipeline(command_buffer, .GRAPHICS, graphics_pipeline)
@@ -1478,24 +1453,7 @@ update_descriptor_set :: proc(
 update_uniform_buffer :: proc(start_time: time.Tick, ubo_map_memory_ptr: rawptr, swap_chain_extent: vk.Extent2D) {
 	elapsed_seconds := f32(time.tick_since(start_time)) / f32(time.Second)
 
-	angle := elapsed_seconds * math.to_radians_f32(90)
-
-	width := swap_chain_extent.width
-	height := swap_chain_extent.height
-
-	if height == 0 {
-		return
-	}
-
-	aspect := f32(width) / f32(height)
-
 	ubo := Uniform_Buffer_Object {
-		model      = la.matrix4_rotate(angle, vec3{0.0, 0.0, 1.0}),
-		view       = la.matrix4_look_at(vec3{2.0, 2.0, 2.0}, vec3{0.0, 0.0, 0.0}, vec3{0.0, 0.0, 1.0}),
-		// Vulkan's depth range is [0, 1], not OpenGL's [-1, 1]. core:math/linalg's matrix4_perspective
-		// produces the OpenGL range and has no equivalent of GLM_FORCE_DEPTH_ZERO_TO_ONE,
-		// so we use a custom matrix4_perspective_vulkan proc that bakes the Vulkan Z range and the Y flip in.
-		proj       = matrix4_perspective_vulkan(math.to_radians_f32(45.0), aspect, 0.1, 10.0),
 		delta_time = elapsed_seconds,
 	}
 
@@ -1889,59 +1847,6 @@ load_model :: proc(path: string) -> (vertices: []Vertex, indices: []u16) {
 	return
 }
 
-get_max_usable_sample_count :: proc(physical_device: vk.PhysicalDevice) -> vk.SampleCountFlags {
-	physical_device_props: vk.PhysicalDeviceProperties
-	vk.GetPhysicalDeviceProperties(physical_device, &physical_device_props)
-
-	counts := physical_device_props.limits.framebufferColorSampleCounts & physical_device_props.limits.framebufferDepthSampleCounts
-	if (counts & {._64}) == {._64} {return {._64}}
-	if (counts & {._32}) == {._32} {return {._32}}
-	if (counts & {._16}) == {._16} {return {._16}}
-	if (counts & {._8}) == {._8} {return {._8}}
-	if (counts & {._4}) == {._4} {return {._4}}
-	if (counts & {._2}) == {._2} {return {._2}}
-
-	return {._1}
-}
-
-
-create_color_resources :: proc(
-	physical_device: vk.PhysicalDevice,
-	device: vk.Device,
-	color_format: vk.Format,
-	swap_chain_extent: vk.Extent2D,
-	samples: vk.SampleCountFlags,
-) -> (
-	vk.Image,
-	vk.DeviceMemory,
-	vk.ImageView,
-) {
-
-	color_image, color_image_memory := create_image(
-		physical_device,
-		device,
-		swap_chain_extent.width,
-		swap_chain_extent.height,
-		1,
-		samples,
-		1,
-		color_format,
-		{.TRANSIENT_ATTACHMENT, .COLOR_ATTACHMENT},
-		{.DEVICE_LOCAL},
-	)
-	color_image_view := create_image_view(device, color_image, color_format, {.COLOR}, 1)
-
-	return color_image, color_image_memory, color_image_view
-}
-
-
-destroy_color_resources :: proc(device: vk.Device, color_image: vk.Image, color_image_memory: vk.DeviceMemory, color_image_view: vk.ImageView) {
-	vk.DestroyImageView(device, color_image_view, nil)
-	vk.FreeMemory(device, color_image_memory, nil)
-	vk.DestroyImage(device, color_image, nil)
-}
-
-
 create_particles :: proc(count: u32) -> []Particle {
 	particles := make([dynamic]Particle, count)
 	for &particle in particles {
@@ -2076,10 +1981,8 @@ main :: proc() {
 	swap_chain_image_views := create_image_views(device, swap_chain_images, swap_chain_format)
 	fmt.println("Swap chain images views... OK")
 
-	// Color resources
-	samples := get_max_usable_sample_count(physical_device)
-	color_image, color_image_memory, color_image_view := create_color_resources(physical_device, device, swap_chain_format, swap_chain_extent, samples)
-	fmt.println("Color resource... OK")
+	// No MSAA in this step: we render directly into the swapchain image at 1 sample per pixel.
+	samples := vk.SampleCountFlags{._1}
 
 	// Depth resources
 	depth_format := find_depth_format(physical_device)
@@ -2160,38 +2063,6 @@ main :: proc() {
 	compute_fences: [NB_FRAMES_IN_FLIGHT]vk.Fence
 	create_fences(device, compute_fences[:])
 	fmt.println("Compute fences... OK")
-
-	// Loading model
-	vertices, indices := load_model("../../assets/models/viking_room/viking_room.obj")
-	fmt.println("Model loaded... OK")
-
-	// Create the vertex buffer on the GPU and with a transfer destination flag to allow copy from staging buffer
-	vertex_buffer, vertex_buffer_memory := create_buffer(physical_device, device, u64(size_of(Vertex) * len(vertices)), {.VERTEX_BUFFER, .TRANSFER_DST}, {.DEVICE_LOCAL})
-	fmt.println("Vertex buffer... OK")
-
-	// Copy vertex data to memory
-	transfer_to_buffer(physical_device, device, command_pool, graphics_queue, vertices, vertex_buffer)
-	fmt.println("Vertex copied to buffer using staging buffer... OK")
-
-	// Create the index buffer on the GPU and with a transfer destination flag to allow copy from staging buffer
-	index_buffer, index_buffer_memory := create_buffer(physical_device, device, u64(size_of(u16) * len(indices)), {.INDEX_BUFFER, .TRANSFER_DST}, {.DEVICE_LOCAL})
-	fmt.println("Index buffer... OK")
-
-	// Copy index data to memory
-	transfer_to_buffer(physical_device, device, command_pool, graphics_queue, indices, index_buffer)
-	fmt.println("Indices copied to buffer using staging buffer... OK")
-
-	// Create texture image
-	image, image_memory, texture_mip_levels := create_texture_image(physical_device, device, "../../assets/models/viking_room/viking_room.png", command_pool, graphics_queue)
-	fmt.println("Texture image loaded... OK")
-
-	// Image view
-	image_view := create_image_view(device, image, .R8G8B8A8_SRGB, {.COLOR}, texture_mip_levels)
-	fmt.println("Texture image view... OK")
-
-	// Sampler
-	sampler := create_sampler(physical_device, device)
-	fmt.println("Sampler... OK")
 
 	// Uniform buffer
 	// One buffer per frame so the data can be updated for the next frame while the previous frame is being rendered on the GPU.
@@ -2287,8 +2158,6 @@ main :: proc() {
 				particle_count,
 				depth_image,
 				depth_image_view,
-				color_image,
-				color_image_view,
 			)
 
 			// Submit the command buffer to the graphics queue
@@ -2321,7 +2190,6 @@ main :: proc() {
 			wait_idle_device(device)
 
 			destroy_depth_resources(device, depth_image, depth_image_memory, depth_image_view)
-			destroy_color_resources(device, color_image, color_image_memory, color_image_view)
 			destroy_swap_chain_image_views(device, swap_chain_image_views)
 			destroy_swap_chain_images(device, swap_chain_images)
 			destroy_swap_chain(device, swap_chain)
@@ -2329,7 +2197,6 @@ main :: proc() {
 			swap_chain, swap_chain_extent, swap_chain_format = create_swap_chain(physical_device, device, surface, window)
 			swap_chain_images = get_swap_chain_images(device, swap_chain)
 			swap_chain_image_views = create_image_views(device, swap_chain_images, swap_chain_format)
-			color_image, color_image_memory, color_image_view = create_color_resources(physical_device, device, swap_chain_format, swap_chain_extent, samples)
 			depth_image, depth_image_memory, depth_image_view = create_depth_resources(physical_device, device, depth_format, swap_chain_extent, samples)
 
 			fmt.println("Swap chain recreation... OK")
@@ -2360,30 +2227,6 @@ main :: proc() {
 	}
 	if descriptor_set_layout != 0 {
 		vk.DestroyDescriptorSetLayout(device, descriptor_set_layout, nil)
-	}
-	if sampler != 0 {
-		vk.DestroySampler(device, sampler, nil)
-	}
-	if image_view != 0 {
-		vk.DestroyImageView(device, image_view, nil)
-	}
-	if image_memory != 0 {
-		vk.FreeMemory(device, image_memory, nil)
-	}
-	if image != 0 {
-		vk.DestroyImage(device, image, nil)
-	}
-	if index_buffer_memory != 0 {
-		vk.FreeMemory(device, index_buffer_memory, nil)
-	}
-	if index_buffer != 0 {
-		vk.DestroyBuffer(device, index_buffer, nil)
-	}
-	if vertex_buffer_memory != 0 {
-		vk.FreeMemory(device, vertex_buffer_memory, nil)
-	}
-	if vertex_buffer != 0 {
-		vk.DestroyBuffer(device, vertex_buffer, nil)
 	}
 	for compute_fence in compute_fences {
 		if compute_fence != 0 {
@@ -2430,7 +2273,6 @@ main :: proc() {
 	}
 
 	destroy_depth_resources(device, depth_image, depth_image_memory, depth_image_view)
-	destroy_color_resources(device, color_image, color_image_memory, color_image_view)
 	destroy_swap_chain_image_views(device, swap_chain_image_views)
 	destroy_swap_chain_images(device, swap_chain_images)
 	destroy_swap_chain(device, swap_chain)

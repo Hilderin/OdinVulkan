@@ -50,6 +50,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 25 | [Loading Models](./25_loading_models.md) | Load the viking room mesh from a `.obj` file into the existing vertex and index buffers. |
 | 26 | [Mipmaps](./26_mipmaps.md) | Generate a mip chain at load time so distant fragments sample smaller, pre-filtered copies of the texture. |
 | 27 | [Multisampling](./27_multisampling.md) | Enable MSAA so triangle edges at the silhouette stop staircase-shimmering. |
+| 28 | [Compute Shader](./28_compute_shader.md) | Bonus chapter: a GPU-driven particle system using a compute shader and shader storage buffers, no CPU round trip per frame. |
 
 ## References
 

@@ -21,7 +21,7 @@ struct PSInput
 VSOutput vertMain(VSInput input) {
     VSOutput output;
     output.pointSize = 14.0;
-    output.pos = float4(input.inPosition, 0.0, 1.0);
+    output.pos = float4(input.inPosition, 1.0, 1.0);
     output.fragColor = input.inColor.rgb;
     return output;
 }
@@ -39,9 +39,6 @@ struct Particle {
 };
 
 struct UniformBuffer {
-    float4x4 model;
-    float4x4 view;
-    float4x4 proj;
     float deltaTime;
 };
 ConstantBuffer<UniformBuffer> ubo;

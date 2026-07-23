@@ -91,7 +91,6 @@ create_depth_resources :: proc(
 		device,
 		swap_chain_extent.width,
 		swap_chain_extent.height,
-		1,
 		depth_format,
 		{.DEPTH_STENCIL_ATTACHMENT},
 		{.DEVICE_LOCAL},

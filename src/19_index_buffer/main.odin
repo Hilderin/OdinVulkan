@@ -723,7 +723,6 @@ create_graphics_pipeline :: proc(
 
 	// -----------------------------------
 	// Pipeline layout
-	// No uniform right now, so create an empty pipeline layout. We will be back for that too in later chapter.
 	pipeline_layout_create_info := vk.PipelineLayoutCreateInfo {
 		sType                  = .PIPELINE_LAYOUT_CREATE_INFO,
 		setLayoutCount         = 0,
@@ -748,7 +747,6 @@ create_graphics_pipeline :: proc(
 	// -----------------------------------
 	// Graphics Pipeline
 	// Finally!! We create the pipeline that will be used to render!
-
 	pipeline_create_info := vk.GraphicsPipelineCreateInfo {
 		sType               = .GRAPHICS_PIPELINE_CREATE_INFO,
 		stageCount          = 2,

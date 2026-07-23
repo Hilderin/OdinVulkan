@@ -47,7 +47,7 @@ mip_levels := u32(math.floor(math.log2(f32(max(width, height))))) + 1
 Gains a `mip_levels` parameter - step 25 had `mipLevels = 1` hardcoded inside. The texture now passes the real count:
 
 ```c
-image, image_memory := create_image(physical_device, device, width, height, mip_levels, 1, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
+image, image_memory := create_image(physical_device, device, width, height, mip_levels, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
 ```
 
 Two changes from step 25:

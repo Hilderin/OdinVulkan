@@ -67,7 +67,7 @@ The texture stays at 1x - the shader samples it directly, MSAA doesn't apply:
 
 ```c
 // In create_texture_image
-image, image_memory := create_image(physical_device, device, width, height, mip_levels, {._1}, 1, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
+image, image_memory := create_image(physical_device, device, width, height, mip_levels, {._1}, .R8G8B8A8_SRGB, {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED}, {.DEVICE_LOCAL})
 ```
 
 The depth and color images take the runtime `samples`. `create_depth_resources` and `create_color_resources` forward `samples` to `create_image` internally - we'll see the color one in the next section.
@@ -88,7 +88,6 @@ color_image, color_image_memory := create_image(
     swap_chain_extent.height,
     1,
     samples,
-    1,
     color_format,
     {.TRANSIENT_ATTACHMENT, .COLOR_ATTACHMENT},
     {.DEVICE_LOCAL},

@@ -5,17 +5,13 @@ nav_order: 30
 
 # 28 - Compute Shader
 
-Everything so far drew pixels by feeding vertices through the graphics pipeline. Compute shaders are different: they run outside the graphics pipeline, in parallel, on data we give them, and they can write back to it. Once you have them, a lot of things stop needing a round trip through the CPU - particle systems, image filters, culling, post-processing.
-
-This step reuses everything we built (instance, device, swap chain, command buffers, dynamic rendering) and replaces the textured viking room with a GPU-driven particle system. Eight thousand particles get uploaded once at startup. A compute shader updates their positions on the GPU every frame, and the graphics pipeline reads that same buffer back as a vertex buffer. No per-frame CPU writes, no staging uploads, no `memcpy`.
+This step reuses everything we built (instance, device, swap chain, command buffers, dynamic rendering) and replaces the textured viking room with a GPU-driven particle system. Eight thousand particles get uploaded once at startup. A compute shader updates their positions on the GPU every frame, and the graphics pipeline reads that same buffer back as a vertex buffer.
 
 The full source for this step lives in [src/28_compute_shader/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/28_compute_shader/main.odin).
 
 The corresponding chapters in the Vulkan Tutorial are:
 - Khronos version: <https://docs.vulkan.org/tutorial/latest/11_Compute_Shader.html>
 - vulkan-tutorial.com version: <https://vulkan-tutorial.com/Compute_Shader>
-
-I dropped depth testing and MSAA for this step, on purpose. The particles are square points with a soft circular alpha cutout, and getting transparency to behave with a depth-tested, multisampled setup fights us more than it helps. Rendering straight into the swapchain image at 1 sample per pixel, with depth writes off, matches what the online tutorial does and keeps the focus on the compute part. The depth buffer and multisampling plumbing from steps 24 and 27 are gone.
 
 ---
 
@@ -48,8 +44,6 @@ queue_index, ok := find_queue_families(physical_device, {.GRAPHICS, .COMPUTE}, s
 
 That's the only change. We still create one queue and use the same `graphics_queue` handle to submit both compute and graphics command buffers. Dedicated async-compute queues exist and are great for hiding compute behind rendering, but they force you to deal with cross-queue synchronization. The tutorial skips them - so do we.
 
-`find_queue_families` matches flags with `&`, so a family exposing both graphics and compute still satisfies the request. A strict equality check would break on GPUs that expose a graphics-only family first.
-
 ---
 
 ## Particle data, on the CPU side
@@ -68,7 +62,7 @@ Particle :: struct {
 }
 ```
 
-The UBO lost `model` / `view` / `proj` because we don't transform particles - they already live in clip-space-ish coordinates in `[-1, 1]`. The compute shader only needs the elapsed time to integrate velocity.
+The UBO lost `model` / `view` / `proj` because we don't transform particles - they already live in clip-space-ish coordinates in `[-1, 1]`. The compute shader only needs the elapsed time to update particles position based on velocity.
 
 `create_particles` lays 8192 particles out in a small disc using the classic `r = sqrt(rand)` trick - that gives a uniform distribution inside the disc instead of a denser center. Initial velocity points outward, scaled small:
 
@@ -83,8 +77,6 @@ particle.velocity = la.normalize(vec2{x, y}) * 0.00025
 particle.color = {rand.float32(), rand.float32(), rand.float32(), 1.0}
 ```
 
-`rand.float32()` here is Odin's `core:math/rand` default RNG, not seeded explicitly, so the pattern differs between runs. Good enough for a demo. `r = 0.25 * sqrt(u)` distributes points uniformly inside a disc of radius 0.25; using `r = 0.25 * u` instead would crowd the center.
-
 After this runs, `particles` is uploaded to the GPU and the host copy is deleted - we never touch it again.
 
 ---
@@ -97,7 +89,7 @@ Where this step earns its keep is the buffer usage. We want one piece of GPU mem
 - the vertex shader reads from (so it's a `VERTEX_BUFFER`),
 - we uploaded the initial data into (so it's a `TRANSFER_DST`).
 
-Vulkan lets you OR usages, so:
+Vulkan lets you have multiple usages for the same buffer, so:
 
 ```c
 size_particles_buffer := u64(size_of(Particle) * len(particles))
@@ -115,9 +107,9 @@ for i in 0 ..< NB_FRAMES_IN_FLIGHT {
 }
 ```
 
-One buffer per frame in flight, rotating by slot. Frame `i`'s compute reads `storage_buffers[(i + 1) % NB_FRAMES_IN_FLIGHT]` (the "previous frame" input) and writes `storage_buffers[i]` (the "current frame" output). Frame `i`'s graphics then binds `storage_buffers[frame_index]` - the very same buffer this frame's compute just wrote - as its vertex buffer. So the two buffers are not split between "compute side" and "graphics side"; they alternate between "the buffer being written this frame" and "the buffer being read this frame", and they swap roles next frame.
+One buffer per frame in flight. Frame `i`'s compute reads `storage_buffers[(i + 1) % NB_FRAMES_IN_FLIGHT]` (the "previous frame" input) and writes `storage_buffers[i]` (the "current frame" output). Frame `i`'s graphics then binds `storage_buffers[frame_index]` - the very same buffer this frame's compute just wrote - as its vertex buffer. So the two buffers are not split between "compute side" and "graphics side"; they alternate between "the buffer being written this frame" and "the buffer being read this frame", and they swap roles next frame.
 
-If we had one shared buffer for everything, two things would race. Inside a single dispatch, a compute invocation writing `particlesOut[k]` could clobber the value another invocation still needs to read from `particlesIn[k]` - Vulkan makes no ordering promises between invocations of the same dispatch. Across frames, the compute of frame `i` would write the buffer while the graphics of frame `i - NB_FRAMES_IN_FLIGHT` would still be reading it. Two buffers, one per slot in the rotation, sidestep both: the dispatch reads and writes different storage, and two frames in flight never land on the same slot at once.
+If we had one shared buffer for everything, two things would race. Inside a single dispatch, a compute invocation writing `particlesOut[k]` could clobber the value another invocation still needs to read from `particlesIn[k]` - Vulkan makes no ordering promises between invocations of the same dispatch. Across frames, the compute of frame `i` would write the buffer while the graphics of frame `i - NB_FRAMES_IN_FLIGHT` would still be reading it.
 
 `.DEVICE_LOCAL` keeps the particles on the GPU side of the bus the whole time. Uploads happen once via `transfer_to_buffer` (the staging buffer path from step 18); after that, no CPU reads or writes them.
 
@@ -147,8 +139,6 @@ storage_current_frame_binding := vk.DescriptorSetLayoutBinding {
     stageFlags      = {.COMPUTE},
 }
 ```
-
-Why two SSBO bindings for one particle system? The update is a function of "where the particles were last frame" and "where they go this frame". The compute shader reads from binding 1 (the previous frame's output) and writes to binding 2 (this frame's output). The diagram in the Khronos chapter ([compute_ssbo_read_write](https://docs.vulkan.org/tutorial/latest/11_Compute_Shader.html#_descriptors)) makes the rotation obvious - each frame's "out" is the next frame's "in".
 
 The descriptor pool gets a `STORAGE_BUFFER` count of `NB_FRAMES_IN_FLIGHT * 2`, because each frame references two SSBOs (last + current):
 
@@ -434,6 +424,7 @@ compute_command_buffers: [NB_FRAMES_IN_FLIGHT]vk.CommandBuffer
 
 The per-frame loop looks like this, in order:
 
+{% raw %}
 ```c
 // 1. Wait for this frame's compute slot to be idle on the CPU.
 wait_for_fence(device, compute_fences[frame_index])
@@ -460,6 +451,7 @@ submit_command_buffer(
     graphics_queue,
 )
 ```
+{% endraw %}
 
 The graphics submit waits on two semaphores. `compute_semaphores[frame_index]` is waited on the `.VERTEX_INPUT` stage, so the vertex fetch only starts once the compute shader has finished writing the particles. Remember: graphics binds `storage_buffers[frame_index]`, which is the *same* buffer this frame's compute used as its `particlesOut`. Without that wait, the vertex shader could read positions half-written by a still-running compute dispatch. `acquire_semaphores[frame_index]` is waited on `.COLOR_ATTACHMENT_OUTPUT`, so we don't write colors until the swapchain image is actually ours. That's the read-after-write hazard between compute and graphics, covered with a single semaphore holding graphics back until its compute is done.
 

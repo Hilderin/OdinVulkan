@@ -430,7 +430,7 @@ create_window :: proc() -> glfw.WindowHandle {
 	glfw.WindowHint(glfw.RESIZABLE, 1)
 	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 
-	window := glfw.CreateWindow(512, 512, "Smooth angles...", nil, nil)
+	window := glfw.CreateWindow(512, 512, "Sparkling on the GPU", nil, nil)
 	if window == nil {
 		fmt.eprintln("Unable to create window")
 		os.exit(1)
@@ -1992,10 +1992,7 @@ main :: proc() {
 	// Descriptor pool
 	descriptor_pool := create_descriptor_pool(
 		device,
-		{
-			{type = .UNIFORM_BUFFER, descriptorCount = NB_FRAMES_IN_FLIGHT},
-			{type = .STORAGE_BUFFER, descriptorCount = NB_FRAMES_IN_FLIGHT * 2},
-		},
+		{{type = .UNIFORM_BUFFER, descriptorCount = NB_FRAMES_IN_FLIGHT}, {type = .STORAGE_BUFFER, descriptorCount = NB_FRAMES_IN_FLIGHT * 2}},
 		NB_FRAMES_IN_FLIGHT,
 	)
 	fmt.println("Descriptor pool... OK")

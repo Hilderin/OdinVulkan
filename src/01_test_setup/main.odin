@@ -64,7 +64,13 @@ main :: proc() {
 	fmt.println("Vulkan validation layers... OK!")
 
 	// Check to find the slang compiler (slangc)
-	slangc_path := fmt.tprintf("%s/bin/slangc", vulkan_sdk)
+	slangc_executable: string
+	when ODIN_OS == .Windows {
+		slangc_executable = "slangc.exe"
+	} else {
+		slangc_executable = "slangc"
+	}
+	slangc_path := fmt.tprintf("%s/bin/%s", vulkan_sdk, slangc_executable)
 	if !os.exists(slangc_path) {
 		fmt.eprintfln(
 			"slangc executable not found: '%q'. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",

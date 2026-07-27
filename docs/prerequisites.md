@@ -138,11 +138,32 @@ Search for 'Slang' in the Extensions panel in VSCode and click install.
 For more information: [the Slang VSCode extension on GitHub](https://github.com/shader-slang/slang-vscode-extension).
 
 If you want autoformatting, you will need `clang-format` installed:
-Linux:
+
+### Linux:
 ```
 sudo apt install clang-format
 ```
-**TO COMPLETE FOR WINDOWS, MAC, NON DEBIAN LINUX**
+
+### Windows:
+- Navigate to <https://llvm.org/builds/>
+- Click on 'Windows installer (64-bit)' in the 'Windows snapshot builds' section to download the installer
+- Execute the downloaded .exe to install LLVM which includes clang-format
+  - IMPORTANT: Select Add LLM to the system PATH (for all users or for current user does not matter)
+
+
+### Test clang-format installation
+
+In a terminal:
+```
+clang-format --version
+```
+
+You should se something like:
+```
+clang-format version ....
+```
+
+**TO COMPLETE FOR MAC, NON DEBIAN LINUX**
 
 
 ## Testing your installation

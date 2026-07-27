@@ -8,8 +8,7 @@
                "command": "mkdir -p ./bin/debug"
            },
            "windows": {
-               "command": "cmd",
-               "args": ["/C", "if not exist ./bin/debug mkdir ./bin/debug"]
+               "command": "cmd /c if not exist .\\bin\\debug mkdir .\\bin\\debug"
            },
        },
        {
@@ -19,8 +18,7 @@
                "command": "mkdir -p ./bin/release"
            },
            "windows": {
-               "command": "cmd",
-               "args": ["/C", "if not exist ./bin/release mkdir ./bin/release"]
+               "command": "cmd /c if not exist .\\bin\\release mkdir .\\bin\\release"
            }
        },
        {

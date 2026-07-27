@@ -12,12 +12,19 @@ compile_slang_shader :: proc(slang_path: string, entry_points: []string) -> ([]u
 		return nil, false
 	}
 
-	slangc_path := fmt.tprintf("%s/bin/slangc", vulkan_sdk)
+	slangc_executable: string
+	when ODIN_OS == .Windows {
+		slangc_executable = "slangc.exe"
+	} else {
+		slangc_executable = "slangc"
+	}
+	slangc_path := fmt.tprintf("%s/bin/%s", vulkan_sdk, slangc_executable)
 
 	// UUID v4 → unique temp filename per call.
 	id := uuid.generate_v4()
 	id_str := uuid.to_string(id, context.temp_allocator)
-	spv_path := fmt.tprintf("/tmp/odin_shader_%s.spv", id_str)
+	temp_dir, _ := os.temp_dir(context.temp_allocator)
+	spv_path := fmt.tprintf("%s/odin_shader_%s.spv", temp_dir, id_str)
 	defer os.remove(spv_path)
 
 	commands: [dynamic]string

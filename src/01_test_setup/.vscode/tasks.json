@@ -7,10 +7,9 @@
            "linux": {
                "command": "mkdir -p ./bin/debug"
            },
-           "windows": {
-               "command": "cmd",
-               "args": ["/C", "if not exist ./bin/debug mkdir ./bin/debug"]
-           },
+            "windows": {
+                "command": "cmd /c if not exist .\\bin\\debug mkdir .\\bin\\debug"
+            },
        },
        {
            "label": "Create build directory - Release",
@@ -18,10 +17,9 @@
            "linux": {
                "command": "mkdir -p ./bin/release"
            },
-           "windows": {
-               "command": "cmd",
-               "args": ["/C", "if not exist ./bin/release mkdir ./bin/release"]
-           }
+            "windows": {
+                "command": "cmd /c if not exist .\\bin\\release mkdir .\\bin\\release"
+            }
        },
        {
            "label": "Build - Debug",

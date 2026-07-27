@@ -51,11 +51,14 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 26 | [Mipmaps](./26_mipmaps.md) | Generate a mip chain at load time so distant fragments sample smaller, pre-filtered copies of the texture. |
 | 27 | [Multisampling](./27_multisampling.md) | Enable MSAA so triangle edges at the silhouette stop staircase-shimmering. |
 | 28 | [Compute Shader](./28_compute_shader.md) | Bonus chapter: a GPU-driven particle system using a compute shader and shader storage buffers, no CPU round trip per frame. |
+| 29 | [ovk Framework Init](./29_ovk_framework_init.md) | First refactoring step: extract instance, device, window, and GLFW boilerplate into the reusable `ovk` library. No new features, just cleaner code. |
 
 ## References
 
 - [Code standards](./code_standards.md) - naming, style, compiler flags, Vulkan-specific gotchas.
 - [Prerequisites](./prerequisites.md) - installing Odin, Vulkan SDK, GLFW, VSCode setup.
+- [VSCode Project Setup](./vscode_setup.md) - how the `.vscode/` config files work (tasks, debug, settings).
+- [Setup Documentation Site](./setup_documentation_site.md) - build and preview this Jekyll site locally.
 
 ## External References
 

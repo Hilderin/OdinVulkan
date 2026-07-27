@@ -1,6 +1,5 @@
 package main
 
-import "base:runtime"
 import "core:bytes"
 import "core:fmt"
 import img "core:image"
@@ -10,11 +9,11 @@ import la "core:math/linalg"
 import "core:mem"
 import "core:os"
 import "core:path/slashpath"
-import "core:reflect"
 import "core:slice"
 import "core:strings"
 import "core:time"
 
+import ovk "../../libs/ovk"
 import tinyobj "../../libs/tinyobj"
 import "vendor:glfw"
 import vk "vendor:vulkan"
@@ -29,6 +28,15 @@ _ :: png
 vec2 :: [2]f32
 vec3 :: [3]f32
 mat4 :: matrix[4, 4]f32
+
+
+// Contains a reference to the ovk structs
+App :: struct {
+	instance:        ovk.Instance,
+	window:          ovk.Window,
+	physical_device: ovk.Physical_Device,
+	device:          ovk.Device,
+}
 
 // Vertex attributes
 Vertex :: struct {
@@ -47,15 +55,6 @@ Uniform_Buffer_Object :: struct {
 // Number of frames in flight
 NB_FRAMES_IN_FLIGHT :: 2
 
-// Globals needed for debug messenger cleanup.
-debug_messenger: vk.DebugUtilsMessengerEXT = {}
-
-// Debug level - controls which severities are enabled and printed.
-debug_level: vk.DebugUtilsMessageSeverityFlagsEXT = {.WARNING, .ERROR}
-
-// Required validation layers.
-validation_layers := []cstring{"VK_LAYER_KHRONOS_validation"}
-
 // Required extensions
 required_extensions := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 
@@ -66,377 +65,45 @@ running: bool = true
 framebuffer_resized: bool = false
 
 
-vk_check :: proc(result: vk.Result, operation: string, loc := #caller_location) {
-	if result == .SUCCESS {
-		return
-	}
-	p := context.assertion_failure_proc
-	when ODIN_DEBUG {
-		p(operation, reflect.enum_string(result), loc)
-	} else {
-		p(operation, "Vulkan operation failed", loc)
-	}
+// Initialize the application.
+init_app :: proc(app: ^App) -> (err: ovk.Error) {
+
+	// We need to initialize GLFW so the glfw.GetInstanceProcAddress() method returns a valid callback to load Vulkan function addresses.
+	ovk.init_glfw() or_return
+
+	// Create Vulkan instance...
+	app.instance = ovk.create_instance(
+		{
+			application_name = "Odin Vulkan",
+			application_version = vk.MAKE_VERSION(1, 0, 0),
+			engine_name = "No engine",
+			engine_version = vk.MAKE_VERSION(1, 0, 0),
+			get_instance_proc_addr = rawptr(glfw.GetInstanceProcAddress),
+			extensions = glfw.GetRequiredInstanceExtensions(),
+			debug = true,
+			debug_level = {.WARNING, .ERROR},
+		},
+	) or_return
+
+
+	// Create window
+	app.window = ovk.create_window({instance = &app.instance, title = "My little window from the lib", width = 512, height = 512, resizable = true}) or_return
+
+	// Pick physical device
+	app.physical_device = ovk.get_physical_device({instance = &app.instance, surface = app.window.surface, required_extensions = required_extensions}) or_return
+
+	// Create logical device
+	app.device = ovk.create_logical_device({physical_device = &app.physical_device, required_extensions = required_extensions}) or_return
+
+	return
 }
 
-
-debug_callback :: proc "system" (
-	messageSeverity: vk.DebugUtilsMessageSeverityFlagsEXT,
-	messageTypes: vk.DebugUtilsMessageTypeFlagsEXT,
-	pCallbackData: ^vk.DebugUtilsMessengerCallbackDataEXT,
-	pUserData: rawptr,
-) -> b32 {
-	// "system" callbacks are called from C without an Odin context, we need to specify the default context to compile.
-	context = runtime.default_context()
-	if .ERROR in messageSeverity && .ERROR in debug_level {
-		fmt.eprintfln("[validation ERROR] %s", pCallbackData.pMessage)
-	} else if .WARNING in messageSeverity && .WARNING in debug_level {
-		fmt.eprintfln("[validation WARNING] %s", pCallbackData.pMessage)
-	} else if .INFO in messageSeverity && .INFO in debug_level {
-		fmt.println("[validation INFO]", pCallbackData.pMessage)
-	} else if .VERBOSE in messageSeverity && .VERBOSE in debug_level {
-		fmt.printfln("[validation VERBOSE] %s", pCallbackData.pMessage)
-	}
-	return false
-}
-
-
-create_instance :: proc() -> vk.Instance {
-	vk.load_proc_addresses(rawptr(glfw.GetInstanceProcAddress))
-	if !are_layers_supported(validation_layers) {
-		fmt.eprintln(
-			"Vulkan validation layers not available. The Vulkan SDK is not correctly installed. Be sure the 'VULKAN_SDK' environment variable is correctly. Refer to the Vulkan SDK installation procedure: https://vulkan.lunarg.com/doc/sdk/latest",
-		)
-		os.exit(1)
-	}
-
-	app_info := vk.ApplicationInfo {
-		sType              = .APPLICATION_INFO,
-		pApplicationName   = "Odin Vulkan Tutorial",
-		applicationVersion = vk.MAKE_VERSION(1, 0, 0),
-		pEngineName        = "No Engine",
-		engineVersion      = vk.MAKE_VERSION(1, 0, 0),
-		apiVersion         = vk.API_VERSION_1_4,
-	}
-
-	extensions := glfw.GetRequiredInstanceExtensions()
-	ext_names: [dynamic]cstring
-	defer delete(ext_names)
-	append(&ext_names, ..extensions)
-	append(&ext_names, vk.EXT_DEBUG_UTILS_EXTENSION_NAME)
-
-	debug_create_info := vk.DebugUtilsMessengerCreateInfoEXT {
-		sType           = .DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-		messageSeverity = debug_level,
-		messageType     = {.GENERAL, .VALIDATION, .PERFORMANCE},
-		pfnUserCallback = debug_callback,
-		pUserData       = nil,
-	}
-
-	create_info := vk.InstanceCreateInfo {
-		sType                   = .INSTANCE_CREATE_INFO,
-		pApplicationInfo        = &app_info,
-		enabledExtensionCount   = u32(len(ext_names)),
-		ppEnabledExtensionNames = raw_data(ext_names[:]),
-		enabledLayerCount       = u32(len(validation_layers)),
-		ppEnabledLayerNames     = raw_data(validation_layers),
-		pNext                   = &debug_create_info,
-	}
-
-	instance: vk.Instance
-	vk_check(vk.CreateInstance(&create_info, nil, &instance), "failed to create instance!")
-	vk.load_proc_addresses_instance(instance)
-
-	if vk.CreateDebugUtilsMessengerEXT != nil {
-		vk_check(vk.CreateDebugUtilsMessengerEXT(instance, &debug_create_info, nil, &debug_messenger), "failed to create debug messenger!")
-	}
-
-	return instance
-}
-
-
-are_layers_supported :: proc(required_layers: []cstring) -> b32 {
-	layer_count: u32
-	vk.EnumerateInstanceLayerProperties(&layer_count, nil)
-	available_layers := make([]vk.LayerProperties, layer_count)
-	defer delete(available_layers)
-	vk.EnumerateInstanceLayerProperties(&layer_count, raw_data(available_layers))
-
-	for req_layer in required_layers {
-		found := false
-		for &layer in available_layers {
-			if cstring(&layer.layerName[0]) == req_layer {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
-
-
-is_physical_device_support_surface :: proc(physical_device: vk.PhysicalDevice, queue_index: u32, surface: vk.SurfaceKHR) -> bool {
-	supported: b32
-	result := vk.GetPhysicalDeviceSurfaceSupportKHR(physical_device, queue_index, surface, &supported)
-	if result != .SUCCESS {
-		fmt.eprintln("Error getting physical device surface support.")
-		return false
-	}
-	return bool(supported)
-}
-
-
-find_queue_families :: proc(physical_device: vk.PhysicalDevice, queue_flags: vk.QueueFlags, surface: vk.SurfaceKHR) -> (u32, bool) {
-	queue_family_count: u32
-	vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, nil)
-
-	queue_families := make([]vk.QueueFamilyProperties, queue_family_count)
-	defer delete(queue_families)
-	vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, raw_data(queue_families))
-
-	for queue_family, i in queue_families {
-		if (queue_flags & queue_family.queueFlags) == queue_flags {
-			if surface == 0 || is_physical_device_support_surface(physical_device, u32(i), surface) {
-				return u32(i), true
-			}
-		}
-	}
-	return 0, false
-}
-
-
-get_device_features :: proc(
-	device: vk.PhysicalDevice,
-) -> (
-	vk.PhysicalDeviceVulkan11Features,
-	vk.PhysicalDeviceVulkan13Features,
-	vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT,
-	vk.PhysicalDeviceFeatures,
-) {
-	vulkan13_features := vk.PhysicalDeviceVulkan13Features {
-		sType = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
-	}
-	extended_dynamic_state_features := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
-	}
-	vulkan13_features.pNext = &extended_dynamic_state_features
-
-	vulkan11_features := vk.PhysicalDeviceVulkan11Features {
-		sType = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-		pNext = &vulkan13_features,
-	}
-
-	features2 := vk.PhysicalDeviceFeatures2 {
-		sType = .PHYSICAL_DEVICE_FEATURES_2,
-		pNext = &vulkan11_features,
-	}
-
-	vk.GetPhysicalDeviceFeatures2(device, &features2)
-	return vulkan11_features, vulkan13_features, extended_dynamic_state_features, features2.features
-}
-
-
-score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> int {
-	props: vk.PhysicalDeviceProperties
-	vk.GetPhysicalDeviceProperties(device, &props)
-
-	name := string(cstring(&props.deviceName[0]))
-
-	// Require at least Vulkan 1.4.
-	if props.apiVersion < vk.API_VERSION_1_4 {
-		fmt.printfln(
-			"  %q - apiVersion=%d.%d.%d, < 1.4 (skipped)",
-			name,
-			vk.API_VERSION_MAJOR(props.apiVersion),
-			vk.API_VERSION_MINOR(props.apiVersion),
-			vk.API_VERSION_PATCH(props.apiVersion),
-		)
-		return -1
-	}
-
-	// Must have at least a graphics queue family.
-	if _, ok := find_queue_families(device, {.GRAPHICS}, surface); !ok {
-		fmt.printfln("  %q - no graphics queue (skipped)", name)
-		return -1
-	}
-
-	// Must support all required device extensions.
-	ext_count: u32
-	vk.EnumerateDeviceExtensionProperties(device, nil, &ext_count, nil)
-	available_exts := make([]vk.ExtensionProperties, ext_count)
-	defer delete(available_exts)
-	vk.EnumerateDeviceExtensionProperties(device, nil, &ext_count, raw_data(available_exts))
-
-	for req_ext in required_extensions {
-		found := false
-		for &ext in available_exts {
-			if cstring(&ext.extensionName[0]) == req_ext {
-				found = true
-				break
-			}
-		}
-		if !found {
-			fmt.printfln("  %q - missing required extension %s (skipped)", name, req_ext)
-			return -1
-		}
-	}
-
-	vulkan11_f, vulkan13_f, ext_dynamic_f, base_f := get_device_features(device)
-
-	if !vulkan11_f.shaderDrawParameters {
-		fmt.printfln("  %q - missing shaderDrawParameters (skipped)", name)
-		return -1
-	}
-	if !vulkan13_f.dynamicRendering {
-		fmt.printfln("  %q - missing dynamicRendering (skipped)", name)
-		return -1
-	}
-	// Since we now use vk.CmdPipelineBarrier2 and the ImageMemoryBarrier2/DependencyInfo structs in transition_image_layout,
-	// we now require the synchronization2 feature from Vulkan1.3
-	if !vulkan13_f.synchronization2 {
-		fmt.printfln("  %q - missing synchronization2 (skipped)", name)
-		return -1
-	}
-	if !ext_dynamic_f.extendedDynamicState {
-		fmt.printfln("  %q - missing extendedDynamicState (skipped)", name)
-		return -1
-	}
-	if !base_f.samplerAnisotropy {
-		fmt.printfln("  %q - missing samplerAnisotropy (skipped)", name)
-		return -1
-	}
-
-
-	score := 0
-
-	// Discrete GPUs have a significant performance advantage.
-	if props.deviceType == .DISCRETE_GPU {
-		score += 1000
-	} else if props.deviceType == .INTEGRATED_GPU {
-		score += 500
-	}
-
-	// Maximum possible size of textures affects graphics quality.
-	score += int(props.limits.maxImageDimension2D)
-
-	fmt.printfln("  %q - type=%v, score=%d", name, props.deviceType, score)
-	return score
-}
-
-
-pick_physical_device :: proc(instance: vk.Instance, surface: vk.SurfaceKHR) -> vk.PhysicalDevice {
-	dev_count: u32
-	vk.EnumeratePhysicalDevices(instance, &dev_count, nil)
-	if dev_count == 0 {
-		fmt.eprintln("failed to find GPUs with Vulkan support!")
-		os.exit(1)
-	}
-
-	physical_devices := make([]vk.PhysicalDevice, dev_count)
-	defer delete(physical_devices)
-	vk.EnumeratePhysicalDevices(instance, &dev_count, raw_data(physical_devices))
-
-	best_score := -1
-	best_device: vk.PhysicalDevice = nil
-
-	for device in physical_devices {
-		s := score_device(device, surface)
-		if s > best_score {
-			best_score = s
-			best_device = device
-		}
-	}
-
-	if best_device == nil {
-		fmt.eprintln("failed to find a suitable GPU!")
-		os.exit(1)
-	}
-
-	fmt.printfln("Selected physical device (score=%d)", best_score)
-	return best_device
-}
-
-
-create_logical_device :: proc(physical_device: vk.PhysicalDevice, surface: vk.SurfaceKHR) -> (vk.Device, vk.Queue) {
-	queue_index, ok := find_queue_families(physical_device, {.GRAPHICS}, surface)
-	if !ok {
-		fmt.eprintfln("No graphics queue found on physical device.")
-		os.exit(1)
-	}
-
-	queue_priority: f32 = 0.5
-	queue_create_info := vk.DeviceQueueCreateInfo {
-		sType            = .DEVICE_QUEUE_CREATE_INFO,
-		queueFamilyIndex = queue_index,
-		queueCount       = 1,
-		pQueuePriorities = &queue_priority,
-	}
-
-	device_feature_extended_dynamic_state := vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT {
-		sType                = .PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
-		extendedDynamicState = true,
-	}
-
-	device_feature_vulkan13 := vk.PhysicalDeviceVulkan13Features {
-		sType            = .PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
-		dynamicRendering = true,
-		// Since we now use vk.CmdPipelineBarrier2 and the ImageMemoryBarrier2/DependencyInfo structs in transition_image_layout,
-		// we now require the synchronization2 feature from Vulkan1.3
-		synchronization2 = true,
-		pNext            = &device_feature_extended_dynamic_state,
-	}
-
-	device_feature_vulkan11 := vk.PhysicalDeviceVulkan11Features {
-		sType                = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-		shaderDrawParameters = true,
-		pNext                = &device_feature_vulkan13,
-	}
-
-	device_feature_2 := vk.PhysicalDeviceFeatures2 {
-		sType = .PHYSICAL_DEVICE_FEATURES_2,
-		pNext = &device_feature_vulkan11,
-		features = {samplerAnisotropy = true},
-	}
-
-	create_info := vk.DeviceCreateInfo {
-		sType                   = .DEVICE_CREATE_INFO,
-		pQueueCreateInfos       = &queue_create_info,
-		queueCreateInfoCount    = 1,
-		enabledExtensionCount   = u32(len(required_extensions)),
-		ppEnabledExtensionNames = raw_data(required_extensions),
-		pNext                   = &device_feature_2,
-	}
-
-	device: vk.Device
-	vk_check(vk.CreateDevice(physical_device, &create_info, nil, &device), "Failed to create logical device!")
-
-	queue: vk.Queue
-	vk.GetDeviceQueue(device, queue_index, 0, &queue)
-
-	return device, queue
-}
-
-
-create_window :: proc() -> glfw.WindowHandle {
-	glfw.WindowHint(glfw.RESIZABLE, 1)
-	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
-
-	window := glfw.CreateWindow(512, 512, "Smooth angles...", nil, nil)
-	if window == nil {
-		fmt.eprintln("Unable to create window")
-		os.exit(1)
-	}
-	return window
-}
-
-
-create_surface :: proc(instance: vk.Instance, window: glfw.WindowHandle) -> vk.SurfaceKHR {
-	surface: vk.SurfaceKHR
-	vk_check(glfw.CreateWindowSurface(instance, window, nil, &surface), "Failed to create surface!")
-
-	return surface
+// Destroy the application.
+destroy_app :: proc(app: ^App) {
+	ovk.destroy_device(&app.device)
+	ovk.destroy_window(&app.window)
+	ovk.destroy_instance(&app.instance)
+	ovk.destroy_glfw()
 }
 
 
@@ -518,7 +185,7 @@ choose_present_mode :: proc(present_modes: []vk.PresentModeKHR) -> vk.PresentMod
 
 create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device, surface: vk.SurfaceKHR, window: glfw.WindowHandle) -> (vk.SwapchainKHR, vk.Extent2D, vk.Format) {
 	surface_capabilities: vk.SurfaceCapabilitiesKHR
-	vk_check(vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities), "Failed to get surface capabilities!")
+	ovk.check_panic(vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities), "Failed to get surface capabilities!")
 
 	swap_chain_extent := choose_swap_extent(surface_capabilities, window)
 	min_image_count := choose_swap_min_image_count(surface_capabilities)
@@ -546,7 +213,7 @@ create_swap_chain :: proc(physical_device: vk.PhysicalDevice, device: vk.Device,
 	}
 
 	swap_chain: vk.SwapchainKHR
-	vk_check(vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain), "Failed to create swap chain!")
+	ovk.check_panic(vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain), "Failed to create swap chain!")
 
 	return swap_chain, swap_chain_extent, format.format
 }
@@ -563,7 +230,7 @@ create_image_view :: proc(device: vk.Device, image: vk.Image, format: vk.Format,
 	}
 
 	image_view: vk.ImageView
-	vk_check(vk.CreateImageView(device, &create_info, nil, &image_view), "Failed to create image view!")
+	ovk.check_panic(vk.CreateImageView(device, &create_info, nil, &image_view), "Failed to create image view!")
 
 	return image_view
 }
@@ -603,11 +270,11 @@ create_shader_module :: proc(device: vk.Device, slang_path: string, entry_points
 	create_info := vk.ShaderModuleCreateInfo {
 		sType    = .SHADER_MODULE_CREATE_INFO,
 		codeSize = len(spv),
-		pCode    = raw_data(slice.reinterpret([]u32, spv)), //Needs to be a pointer to u32
+		pCode    = raw_data(slice.reinterpret([]u32, spv)), // Needs to be a pointer to u32
 	}
 
 	shader_module: vk.ShaderModule
-	vk_check(vk.CreateShaderModule(device, &create_info, nil, &shader_module), "Failed to create shader module!")
+	ovk.check_panic(vk.CreateShaderModule(device, &create_info, nil, &shader_module), "Failed to create shader module!")
 
 	return shader_module
 
@@ -642,7 +309,7 @@ create_graphics_pipeline :: proc(
 	}
 
 	// -----------------------------------
-	// Dynamic state - Defines what can be dymanic in the pipeline
+	// Dynamic state - Defines what can be dynamic in the pipeline
 	dynamic_states := []vk.DynamicState{.VIEWPORT, .SCISSOR}
 	dynamic_state_create_info := vk.PipelineDynamicStateCreateInfo {
 		sType             = .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
@@ -652,7 +319,7 @@ create_graphics_pipeline :: proc(
 
 	// -----------------------------------
 	// Vertex input
-	// Configure que format of the buffer where the vertices are stored.
+	// Configure the format of the buffer where the vertices are stored.
 	binding_description := vk.VertexInputBindingDescription{}
 	binding_description.binding = 0
 	binding_description.stride = size_of(Vertex)
@@ -773,7 +440,7 @@ create_graphics_pipeline :: proc(
 	}
 
 	pipeline_layout: vk.PipelineLayout
-	vk_check(vk.CreatePipelineLayout(device, &pipeline_layout_create_info, nil, &pipeline_layout), "Failed to create pipeline layout!")
+	ovk.check_panic(vk.CreatePipelineLayout(device, &pipeline_layout_create_info, nil, &pipeline_layout), "Failed to create pipeline layout!")
 
 	// -----------------------------------
 	// Pipeline Rendering Create Info
@@ -807,27 +474,21 @@ create_graphics_pipeline :: proc(
 	}
 
 	graphics_pipeline: vk.Pipeline
-	vk_check(vk.CreateGraphicsPipelines(device, 0, 1, &pipeline_create_info, nil, &graphics_pipeline), "Failed to create graphics pipeline!")
+	ovk.check_panic(vk.CreateGraphicsPipelines(device, 0, 1, &pipeline_create_info, nil, &graphics_pipeline), "Failed to create graphics pipeline!")
 
 	return graphics_pipeline, pipeline_layout
 
 }
 
-create_command_pool :: proc(device: vk.Device, physical_device: vk.PhysicalDevice) -> vk.CommandPool {
-
-	queue_index, ok := find_queue_families(physical_device, {.GRAPHICS}, 0)
-	if !ok {
-		fmt.eprintfln("Impossible to find queue index for graphics.")
-		os.exit(1)
-	}
+create_command_pool :: proc(device: vk.Device, physical_device: ^ovk.Physical_Device) -> vk.CommandPool {
 	command_pool_create_info := vk.CommandPoolCreateInfo {
 		sType            = .COMMAND_POOL_CREATE_INFO,
 		flags            = {.RESET_COMMAND_BUFFER},
-		queueFamilyIndex = queue_index,
+		queueFamilyIndex = physical_device.graphics_queue_family,
 	}
 
 	command_pool: vk.CommandPool
-	vk_check(vk.CreateCommandPool(device, &command_pool_create_info, nil, &command_pool), "Failed to create command pool!")
+	ovk.check_panic(vk.CreateCommandPool(device, &command_pool_create_info, nil, &command_pool), "Failed to create command pool!")
 
 	return command_pool
 }
@@ -840,7 +501,7 @@ create_command_buffers :: proc(device: vk.Device, command_pool: vk.CommandPool, 
 		commandBufferCount = u32(len(command_buffers)),
 	}
 
-	vk_check(vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers)), "Failed to create command buffer!")
+	ovk.check_panic(vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers)), "Failed to create command buffer!")
 }
 
 begin_command_buffer :: proc(command_buffer: vk.CommandBuffer, flags: vk.CommandBufferUsageFlags = {}) {
@@ -850,7 +511,7 @@ begin_command_buffer :: proc(command_buffer: vk.CommandBuffer, flags: vk.Command
 		pInheritanceInfo = nil,
 	}
 
-	vk_check(vk.BeginCommandBuffer(command_buffer, &begin_info), "Failed to begin command buffer!")
+	ovk.check_panic(vk.BeginCommandBuffer(command_buffer, &begin_info), "Failed to begin command buffer!")
 }
 
 transition_image_layout :: proc(
@@ -963,7 +624,7 @@ end_rendering :: proc(command_buffer: vk.CommandBuffer) {
 
 
 end_command_buffer :: proc(command_buffer: vk.CommandBuffer) {
-	vk_check(vk.EndCommandBuffer(command_buffer), "Failed to end command buffer!")
+	ovk.check_panic(vk.EndCommandBuffer(command_buffer), "Failed to end command buffer!")
 }
 
 record_command_buffer :: proc(
@@ -983,10 +644,10 @@ record_command_buffer :: proc(
 	color_image_view: vk.ImageView,
 ) {
 
-	// Begin to start the recording...
+	// Start the recording...
 	begin_command_buffer(command_buffer)
 
-	// Transfert the image to ColorAttachmentOptimal
+	// Transfer the image to ColorAttachmentOptimal
 	transition_image_layout(
 		command_buffer,
 		image,
@@ -1000,7 +661,7 @@ record_command_buffer :: proc(
 		1,
 	)
 
-	// Transfert the depth image to DepthAttachmentOptimal
+	// Transfer the depth image to DepthAttachmentOptimal
 	transition_image_layout(
 		command_buffer,
 		depth_image,
@@ -1014,7 +675,7 @@ record_command_buffer :: proc(
 		1,
 	)
 
-	// Transfert the multisampled color image to ColorAttachmentOptimal
+	// Transfer the multisampled color image to ColorAttachmentOptimal
 	transition_image_layout(
 		command_buffer,
 		color_image,
@@ -1085,7 +746,7 @@ create_semaphore :: proc(device: vk.Device) -> vk.Semaphore {
 	}
 
 	semaphore: vk.Semaphore
-	vk_check(vk.CreateSemaphore(device, &semaphore_create_info, nil, &semaphore), "Failed to create a semaphore!")
+	ovk.check_panic(vk.CreateSemaphore(device, &semaphore_create_info, nil, &semaphore), "Failed to create a semaphore!")
 
 	return semaphore
 
@@ -1107,7 +768,7 @@ create_fence :: proc(device: vk.Device) -> vk.Fence {
 	}
 
 	fence: vk.Fence
-	vk_check(vk.CreateFence(device, &fence_create_info, nil, &fence), "Failed to create a fence!")
+	ovk.check_panic(vk.CreateFence(device, &fence_create_info, nil, &fence), "Failed to create a fence!")
 
 	return fence
 
@@ -1124,17 +785,17 @@ create_fences :: proc(device: vk.Device, fences: []vk.Fence) {
 
 wait_for_fence :: proc(device: vk.Device, fence: vk.Fence) {
 	local_fence := fence
-	vk_check(vk.WaitForFences(device, 1, &local_fence, true, max(u64)), "Failed to wait for fence!")
+	ovk.check_panic(vk.WaitForFences(device, 1, &local_fence, true, max(u64)), "Failed to wait for fence!")
 }
 
 reset_fence :: proc(device: vk.Device, fence: vk.Fence) {
 	local_fence := fence
-	vk_check(vk.ResetFences(device, 1, &local_fence), "Failed to reset fence!")
+	ovk.check_panic(vk.ResetFences(device, 1, &local_fence), "Failed to reset fence!")
 }
 
 acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_fence: vk.Fence, acquire_semaphore: vk.Semaphore) -> (u32, bool) {
 
-	// Wait until last frame is not done rendering.
+	// Wait until the last frame has finished rendering.
 	wait_for_fence(device, draw_fence)
 
 
@@ -1142,17 +803,17 @@ acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_
 	swapchain_image_index: u32
 	result := vk.AcquireNextImageKHR(device, swap_chain, max(u64), acquire_semaphore, 0, &swapchain_image_index)
 
-	// Specials result sfrom AcquireNextImageKHR:
+	// Special results from AcquireNextImageKHR:
 	// - VK_SUBOPTIMAL_KHR: A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully.
 	// - VK_ERROR_OUT_OF_DATE_KHR: (usually when the window is resized) A surface has changed in such a way that it is no longer compatible with the swapchain, and further presentation requests using the swapchain will fail. Applications must query the new surface properties and recreate their swapchain if they wish to continue presenting to the surface.
 	if result == .SUBOPTIMAL_KHR || result == .ERROR_OUT_OF_DATE_KHR {
-		// Swap chain needs recreation needed
+		// Swap chain recreation needed
 		return swapchain_image_index, true
 	} else if result != .SUCCESS {
-		vk_check(result, "Failed to acquire next image!")
+		ovk.check_panic(result, "Failed to acquire next image!")
 	}
 
-	// We need to manually reset the fence to the unsignaled state because a fence do not automatically reset.
+	// We need to manually reset the fence to the unsignaled state because a fence does not automatically reset.
 	reset_fence(device, draw_fence)
 
 	return swapchain_image_index, false
@@ -1185,7 +846,7 @@ submit_command_buffer :: proc(
 		pSignalSemaphores    = &local_render_finish_semaphore,
 	}
 
-	vk_check(vk.QueueSubmit(graphics_queue, 1, &submit_info, draw_fence), "Failed to submit command buffer!")
+	ovk.check_panic(vk.QueueSubmit(graphics_queue, 1, &submit_info, draw_fence), "Failed to submit command buffer!")
 }
 
 queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_finish_semaphore: vk.Semaphore, graphics_queue: vk.Queue, swapchain_image_index: u32) -> bool {
@@ -1207,7 +868,7 @@ queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_fin
 		// Swap chain recreation needed
 		return true
 	} else {
-		vk_check(result, "Failed to queue to presentation!")
+		ovk.check_panic(result, "Failed to queue to presentation!")
 	}
 
 	return false
@@ -1259,13 +920,13 @@ create_buffer :: proc(
 	}
 
 	buffer: vk.Buffer
-	vk_check(vk.CreateBuffer(device, &buffer_info, nil, &buffer), "Failed to create buffer!")
+	ovk.check_panic(vk.CreateBuffer(device, &buffer_info, nil, &buffer), "Failed to create buffer!")
 
 	// Memory allocation
 	mem_requirements: vk.MemoryRequirements
 	vk.GetBufferMemoryRequirements(device, buffer, &mem_requirements)
 
-	// Find the memory type based on mem requirements and asked properties.
+	// Find the memory type based on mem requirements and requested properties.
 	memory_type_index, ok := find_memory_type(physical_device, mem_requirements.memoryTypeBits, properties)
 	if !ok {
 		fmt.eprintfln("Failed to find memory type.")
@@ -1280,10 +941,10 @@ create_buffer :: proc(
 	}
 
 	buffer_memory: vk.DeviceMemory
-	vk_check(vk.AllocateMemory(device, &alloc_info, nil, &buffer_memory), "Failed to allocate memory!")
+	ovk.check_panic(vk.AllocateMemory(device, &alloc_info, nil, &buffer_memory), "Failed to allocate memory!")
 
 	// Bind the memory to the buffer
-	vk_check(vk.BindBufferMemory(device, buffer, buffer_memory, 0), "Failed to bind buffer memory!")
+	ovk.check_panic(vk.BindBufferMemory(device, buffer, buffer_memory, 0), "Failed to bind buffer memory!")
 
 	return buffer, buffer_memory
 
@@ -1308,7 +969,7 @@ mem_copy_to_buffer :: proc(device: vk.Device, buffer_memory: vk.DeviceMemory, da
 	size := size_of(T) * len(data)
 	dest_data: rawptr
 
-	vk_check(vk.MapMemory(device, buffer_memory, 0, vk.DeviceSize(size), {}, &dest_data), "Failed to map memory!")
+	ovk.check_panic(vk.MapMemory(device, buffer_memory, 0, vk.DeviceSize(size), {}, &dest_data), "Failed to map memory!")
 
 	mem.copy(dest_data, raw_data(data), size)
 
@@ -1367,7 +1028,7 @@ create_descriptor_set_layout :: proc(device: vk.Device) -> vk.DescriptorSetLayou
 	}
 
 	descriptor_set_layout: vk.DescriptorSetLayout
-	vk_check(vk.CreateDescriptorSetLayout(device, &layout_info, nil, &descriptor_set_layout), "Failed to create descriptor set layout!")
+	ovk.check_panic(vk.CreateDescriptorSetLayout(device, &layout_info, nil, &descriptor_set_layout), "Failed to create descriptor set layout!")
 
 	return descriptor_set_layout
 }
@@ -1383,7 +1044,7 @@ create_descriptor_pool :: proc(device: vk.Device, pool_sizes: []vk.DescriptorPoo
 	}
 
 	descriptor_pool: vk.DescriptorPool
-	vk_check(vk.CreateDescriptorPool(device, &pool_info, nil, &descriptor_pool), "Failed to create descriptor pool!")
+	ovk.check_panic(vk.CreateDescriptorPool(device, &pool_info, nil, &descriptor_pool), "Failed to create descriptor pool!")
 
 	return descriptor_pool
 }
@@ -1406,7 +1067,7 @@ create_descriptor_set :: proc(device: vk.Device, descriptor_pool: vk.DescriptorP
 
 	descriptor_sets := make([]vk.DescriptorSet, descriptor_count)
 
-	vk_check(vk.AllocateDescriptorSets(device, &alloc_info, raw_data(descriptor_sets)), "Failed to allocate descriptor sets!")
+	ovk.check_panic(vk.AllocateDescriptorSets(device, &alloc_info, raw_data(descriptor_sets)), "Failed to allocate descriptor sets!")
 	return descriptor_sets
 }
 
@@ -1519,14 +1180,14 @@ create_image :: proc(
 	}
 
 	image: vk.Image
-	vk_check(vk.CreateImage(device, &image_info, nil, &image), "Failed to create image!")
+	ovk.check_panic(vk.CreateImage(device, &image_info, nil, &image), "Failed to create image!")
 
 
 	// Memory allocation
 	mem_requirements: vk.MemoryRequirements
 	vk.GetImageMemoryRequirements(device, image, &mem_requirements)
 
-	// Find the memory type based on mem requirements and asked properties.
+	// Find the memory type based on mem requirements and requested properties.
 	memory_type_index, ok := find_memory_type(physical_device, mem_requirements.memoryTypeBits, properties)
 	if !ok {
 		fmt.eprintfln("Failed to find memory type.")
@@ -1541,10 +1202,10 @@ create_image :: proc(
 	}
 
 	image_memory: vk.DeviceMemory
-	vk_check(vk.AllocateMemory(device, &alloc_info, nil, &image_memory), "Failed to allocate memory!")
+	ovk.check_panic(vk.AllocateMemory(device, &alloc_info, nil, &image_memory), "Failed to allocate memory!")
 
 	// Bind the memory to the buffer
-	vk_check(vk.BindImageMemory(device, image, image_memory, 0), "Failed to bind image memory!")
+	ovk.check_panic(vk.BindImageMemory(device, image, image_memory, 0), "Failed to bind image memory!")
 
 	return image, image_memory
 }
@@ -1561,7 +1222,7 @@ create_texture_image :: proc(
 	u32,
 ) {
 
-	// Using core image/png to prevent problem with missing stbi on linux systems.
+	// Using core image/png to prevent problems with missing stbi on Linux systems.
 	src_image, err := img.load(path, {.alpha_add_if_missing})
 	if err != nil {
 		fmt.eprintfln("Failed to open image file: %q %q.", path, err)
@@ -1585,7 +1246,7 @@ create_texture_image :: proc(
 	// Copy image to staging buffer
 	mem_copy_to_buffer(device, staging_buffer_memory, bytes.buffer_to_bytes(&src_image.pixels))
 
-	// No need of the original image anymore
+	// No need for the original image anymore
 	img.destroy(src_image)
 
 	// Destination image
@@ -1704,14 +1365,14 @@ end_single_time_commands :: proc(device: vk.Device, command_pool: vk.CommandPool
 	// End command buffer
 	end_command_buffer(command_buffer)
 
-	//Submit and wait
+	// Submit and wait
 	submit_info := vk.SubmitInfo {
 		sType              = .SUBMIT_INFO,
 		commandBufferCount = 1,
 		pCommandBuffers    = &local_command_buffer,
 	}
-	vk_check(vk.QueueSubmit(queue, 1, &submit_info, 0), "Failed to submit command buffer!")
-	vk_check(vk.QueueWaitIdle(queue), "Failed to wait on queue completion.")
+	ovk.check_panic(vk.QueueSubmit(queue, 1, &submit_info, 0), "Failed to submit command buffer!")
+	ovk.check_panic(vk.QueueWaitIdle(queue), "Failed to wait on queue completion.")
 
 
 	vk.FreeCommandBuffers(device, command_pool, 1, &local_command_buffer)
@@ -1755,7 +1416,7 @@ create_sampler :: proc(physical_device: vk.PhysicalDevice, device: vk.Device) ->
 	}
 
 	sampler: vk.Sampler
-	vk_check(vk.CreateSampler(device, &sampler_info, nil, &sampler), "Failed to create texture sampler!")
+	ovk.check_panic(vk.CreateSampler(device, &sampler_info, nil, &sampler), "Failed to create texture sampler!")
 
 	return sampler
 }
@@ -1914,77 +1575,77 @@ main :: proc() {
 	fmt.println("Odin Vulkan Tutorial")
 	fmt.println("-------------------------------------------")
 
-	// We need to initialize GLFW so the glfw.GetInstanceProcAddress() method returns a valid callback to load Vulkan function addresses.
-	if !glfw.Init() {
-		fmt.eprintln("Failed to initialize GLFW")
+
+	// Initialize the application
+	app: App
+	err := init_app(&app)
+	if err != nil {
+		fmt.eprintfln("Failed to initialize vulkan:\n%#v", err)
 		os.exit(1)
 	}
 
-	// Create Vulkan instance...
-	instance := create_instance()
-	fmt.println("Create instance... OK")
-
-	// Create window
-	window := create_window()
-	fmt.println("Window... OK")
-
-	// Create surface
-	surface := create_surface(instance, window)
-	fmt.println("Surface... OK")
-
-	// Pick physical device
-	physical_device := pick_physical_device(instance, surface)
-	fmt.println("Physical device... OK")
-
-	// Create logical device
-	device, graphics_queue := create_logical_device(physical_device, surface)
-	fmt.println("Logical device... OK")
-
 	// Create swap chain
-	swap_chain, swap_chain_extent, swap_chain_format := create_swap_chain(physical_device, device, surface, window)
+	swap_chain, swap_chain_extent, swap_chain_format := create_swap_chain(
+		app.physical_device.vk_physical_device,
+		app.device.vk_device,
+		app.window.surface,
+		app.window.window_handle,
+	)
 	fmt.println("Swap chain... OK")
 
 	// Get swap chain images
-	swap_chain_images := get_swap_chain_images(device, swap_chain)
+	swap_chain_images := get_swap_chain_images(app.device.vk_device, swap_chain)
 	fmt.printfln("Swap chain images [%d]... OK", len(swap_chain_images))
 
 	// Create image views
-	swap_chain_image_views := create_image_views(device, swap_chain_images, swap_chain_format)
+	swap_chain_image_views := create_image_views(app.device.vk_device, swap_chain_images, swap_chain_format)
 	fmt.println("Swap chain images views... OK")
 
 	// Color resources
-	samples := get_max_usable_sample_count(physical_device)
-	color_image, color_image_memory, color_image_view := create_color_resources(physical_device, device, swap_chain_format, swap_chain_extent, samples)
+	samples := get_max_usable_sample_count(app.physical_device.vk_physical_device)
+	color_image, color_image_memory, color_image_view := create_color_resources(
+		app.physical_device.vk_physical_device,
+		app.device.vk_device,
+		swap_chain_format,
+		swap_chain_extent,
+		samples,
+	)
 	fmt.println("Color resource... OK")
 
 	// Depth resources
-	depth_format := find_depth_format(physical_device)
-	depth_image, depth_image_memory, depth_image_view := create_depth_resources(physical_device, device, depth_format, swap_chain_extent, samples)
+	depth_format := find_depth_format(app.physical_device.vk_physical_device)
+	depth_image, depth_image_memory, depth_image_view := create_depth_resources(
+		app.physical_device.vk_physical_device,
+		app.device.vk_device,
+		depth_format,
+		swap_chain_extent,
+		samples,
+	)
 	fmt.println("Depth resource... OK")
 
 	// Create shader module
-	shader_module := create_shader_module(device, "shader.slang", {"vertMain", "fragMain"})
+	shader_module := create_shader_module(app.device.vk_device, "shader.slang", {"vertMain", "fragMain"})
 	fmt.println("Shader module... OK")
 
 	// Descriptor set layout
-	ubo_descriptor_set_layout := create_descriptor_set_layout(device)
+	ubo_descriptor_set_layout := create_descriptor_set_layout(app.device.vk_device)
 	fmt.println("UBO descriptor set layout... OK")
 
 	// Descriptor pool
 	descriptor_pool := create_descriptor_pool(
-		device,
+		app.device.vk_device,
 		{{type = .UNIFORM_BUFFER, descriptorCount = NB_FRAMES_IN_FLIGHT}, {type = .COMBINED_IMAGE_SAMPLER, descriptorCount = NB_FRAMES_IN_FLIGHT}},
 		NB_FRAMES_IN_FLIGHT,
 	)
 	fmt.println("Descriptor pool... OK")
 
 	// Descriptor sets...
-	descriptor_sets := create_descriptor_set(device, descriptor_pool, ubo_descriptor_set_layout, NB_FRAMES_IN_FLIGHT)
+	descriptor_sets := create_descriptor_set(app.device.vk_device, descriptor_pool, ubo_descriptor_set_layout, NB_FRAMES_IN_FLIGHT)
 	fmt.println("Descriptor sets... OK")
 
 	// Create graphics pipeline
 	graphics_pipeline, pipeline_layout := create_graphics_pipeline(
-		device,
+		app.device.vk_device,
 		shader_module,
 		"vertMain",
 		"fragMain",
@@ -1996,17 +1657,17 @@ main :: proc() {
 	fmt.println("Graphics pipeline... OK")
 
 	// Command pool
-	command_pool := create_command_pool(device, physical_device)
+	command_pool := create_command_pool(app.device.vk_device, &app.physical_device)
 	fmt.println("Command pool... OK")
 
 	// Command buffer
 	command_buffers: [NB_FRAMES_IN_FLIGHT]vk.CommandBuffer
-	create_command_buffers(device, command_pool, command_buffers[:])
+	create_command_buffers(app.device.vk_device, command_pool, command_buffers[:])
 	fmt.println("Command buffer... OK")
 
 	// Semaphore to signal that an image has been acquired from the swapchain and is ready for rendering
 	acquire_semaphores: [NB_FRAMES_IN_FLIGHT]vk.Semaphore
-	create_semaphores(device, acquire_semaphores[:])
+	create_semaphores(app.device.vk_device, acquire_semaphores[:])
 	fmt.println("Acquire complete semaphore... OK")
 
 	// Semaphores that are waited on by QueuePresent are buffered based on the number of swapchain images
@@ -2015,44 +1676,62 @@ main :: proc() {
 	//       See: https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html
 	submit_semaphores := make([]vk.Semaphore, len(swap_chain_images))
 	defer delete(submit_semaphores)
-	create_semaphores(device, submit_semaphores[:])
+	create_semaphores(app.device.vk_device, submit_semaphores[:])
 	fmt.printfln("Submit finish semaphores (%d)... OK", len(submit_semaphores))
 
 	// Fence to make sure only one frame is rendered at a time
 	draw_fences: [NB_FRAMES_IN_FLIGHT]vk.Fence
-	create_fences(device, draw_fences[:])
+	create_fences(app.device.vk_device, draw_fences[:])
 	fmt.println("Draw fence... OK")
 
 	// Loading model
 	vertices, indices := load_model("../../assets/models/viking_room/viking_room.obj")
 	fmt.println("Model loaded... OK")
 
-	// Create the vertex buffer on the GPU and with a transfer destination flag to allow copy from staging buffer
-	vertex_buffer, vertex_buffer_memory := create_buffer(physical_device, device, u64(size_of(Vertex) * len(vertices)), {.VERTEX_BUFFER, .TRANSFER_DST}, {.DEVICE_LOCAL})
+	// Create the vertex buffer on the GPU with a transfer destination flag to allow copy from staging buffer
+	vertex_buffer, vertex_buffer_memory := create_buffer(
+		app.physical_device.vk_physical_device,
+		app.device.vk_device,
+		u64(size_of(Vertex) * len(vertices)),
+		{.VERTEX_BUFFER, .TRANSFER_DST},
+		{.DEVICE_LOCAL},
+	)
 	fmt.println("Vertex buffer... OK")
 
 	// Copy vertex data to memory
-	transfer_to_buffer(physical_device, device, command_pool, graphics_queue, vertices, vertex_buffer)
+	transfer_to_buffer(app.physical_device.vk_physical_device, app.device.vk_device, command_pool, app.device.graphics_queue, vertices, vertex_buffer)
 	fmt.println("Vertex copied to buffer using staging buffer... OK")
 
-	// Create the index buffer on the GPU and with a transfer destination flag to allow copy from staging buffer
-	index_buffer, index_buffer_memory := create_buffer(physical_device, device, u64(size_of(u16) * len(indices)), {.INDEX_BUFFER, .TRANSFER_DST}, {.DEVICE_LOCAL})
+	// Create the index buffer on the GPU with a transfer destination flag to allow copy from staging buffer
+	index_buffer, index_buffer_memory := create_buffer(
+		app.physical_device.vk_physical_device,
+		app.device.vk_device,
+		u64(size_of(u16) * len(indices)),
+		{.INDEX_BUFFER, .TRANSFER_DST},
+		{.DEVICE_LOCAL},
+	)
 	fmt.println("Index buffer... OK")
 
 	// Copy index data to memory
-	transfer_to_buffer(physical_device, device, command_pool, graphics_queue, indices, index_buffer)
+	transfer_to_buffer(app.physical_device.vk_physical_device, app.device.vk_device, command_pool, app.device.graphics_queue, indices, index_buffer)
 	fmt.println("Indices copied to buffer using staging buffer... OK")
 
 	// Create texture image
-	image, image_memory, texture_mip_levels := create_texture_image(physical_device, device, "../../assets/models/viking_room/viking_room.png", command_pool, graphics_queue)
+	image, image_memory, texture_mip_levels := create_texture_image(
+		app.physical_device.vk_physical_device,
+		app.device.vk_device,
+		"../../assets/models/viking_room/viking_room.png",
+		command_pool,
+		app.device.graphics_queue,
+	)
 	fmt.println("Texture image loaded... OK")
 
 	// Image view
-	image_view := create_image_view(device, image, .R8G8B8A8_SRGB, {.COLOR}, texture_mip_levels)
+	image_view := create_image_view(app.device.vk_device, image, .R8G8B8A8_SRGB, {.COLOR}, texture_mip_levels)
 	fmt.println("Texture image view... OK")
 
 	// Sampler
-	sampler := create_sampler(physical_device, device)
+	sampler := create_sampler(app.physical_device.vk_physical_device, app.device.vk_device)
 	fmt.println("Sampler... OK")
 
 	// Uniform buffer
@@ -2062,14 +1741,20 @@ main :: proc() {
 	ubo_map_memory_ptrs: [NB_FRAMES_IN_FLIGHT]rawptr
 	for i in 0 ..< NB_FRAMES_IN_FLIGHT {
 		size := u64(size_of(Uniform_Buffer_Object))
-		ubo_buffers[i], ubo_buffer_memories[i] = create_buffer(physical_device, device, size, {.UNIFORM_BUFFER}, {.HOST_VISIBLE, .HOST_COHERENT})
-		vk_check(vk.MapMemory(device, ubo_buffer_memories[i], 0, vk.DeviceSize(size), {}, &ubo_map_memory_ptrs[i]), "Failed to map memory!")
+		ubo_buffers[i], ubo_buffer_memories[i] = create_buffer(
+			app.physical_device.vk_physical_device,
+			app.device.vk_device,
+			size,
+			{.UNIFORM_BUFFER},
+			{.HOST_VISIBLE, .HOST_COHERENT},
+		)
+		ovk.check_panic(vk.MapMemory(app.device.vk_device, ubo_buffer_memories[i], 0, vk.DeviceSize(size), {}, &ubo_map_memory_ptrs[i]), "Failed to map memory!")
 	}
 	fmt.println("Uniform buffer... OK")
 
 	// Set uniform buffer in descriptor sets
 	for i in 0 ..< NB_FRAMES_IN_FLIGHT {
-		update_descriptor_set(device, descriptor_sets[i], ubo_buffers[i], image_view, sampler)
+		update_descriptor_set(app.device.vk_device, descriptor_sets[i], ubo_buffers[i], image_view, sampler)
 	}
 	fmt.println("Descriptor sets updated... OK")
 
@@ -2084,25 +1769,25 @@ main :: proc() {
 			running = false
 		}
 	}
-	glfw.SetKeyCallback(window, key_callback)
+	glfw.SetKeyCallback(app.window.window_handle, key_callback)
 
 	// Window resize
 	framebuffer_resize_callback :: proc "c" (window: glfw.WindowHandle, width: i32, height: i32) {
 		framebuffer_resized = true
 	}
-	glfw.SetFramebufferSizeCallback(window, framebuffer_resize_callback)
+	glfw.SetFramebufferSizeCallback(app.window.window_handle, framebuffer_resize_callback)
 
 	frame_index: u32 = 0
 	start_time := time.tick_now()
-	for !glfw.WindowShouldClose(window) && running {
+	for !glfw.WindowShouldClose(app.window.window_handle) && running {
 		glfw.PollEvents()
 
-		//Acquire next image.
-		swap_chain_image_index, swap_chain_recreation_needed := acquire_next_image(device, swap_chain, draw_fences[frame_index], acquire_semaphores[frame_index])
+		// Acquire next image.
+		swap_chain_image_index, swap_chain_recreation_needed := acquire_next_image(app.device.vk_device, swap_chain, draw_fences[frame_index], acquire_semaphores[frame_index])
 
 		if !swap_chain_recreation_needed {
 
-			// Update unifor form with the new rotation
+			// Update uniform buffer with the new rotation
 			update_uniform_buffer(start_time, ubo_map_memory_ptrs[frame_index], swap_chain_extent)
 
 			// Record command buffer
@@ -2125,16 +1810,22 @@ main :: proc() {
 
 			// Submit the command buffer to the graphics queue
 			submit_command_buffer(
-				device,
+				app.device.vk_device,
 				command_buffers[frame_index],
 				draw_fences[frame_index],
 				acquire_semaphores[frame_index],
 				submit_semaphores[swap_chain_image_index],
-				graphics_queue,
+				app.device.graphics_queue,
 			)
 
 			// Present the image to the user
-			swap_chain_recreation_needed = queue_present(device, swap_chain, submit_semaphores[swap_chain_image_index], graphics_queue, swap_chain_image_index)
+			swap_chain_recreation_needed = queue_present(
+				app.device.vk_device,
+				swap_chain,
+				submit_semaphores[swap_chain_image_index],
+				app.device.graphics_queue,
+				swap_chain_image_index,
+			)
 		}
 
 		// Swap chain recreation?
@@ -2142,26 +1833,43 @@ main :: proc() {
 			fmt.println("Swap chain recreation...")
 
 			// Manage minimized window, we will simply pause the process
-			width, height := glfw.GetFramebufferSize(window)
+			width, height := glfw.GetFramebufferSize(app.window.window_handle)
 			for width == 0 && height == 0 {
 				glfw.WaitEvents()
-				width, height = glfw.GetFramebufferSize(window)
+				width, height = glfw.GetFramebufferSize(app.window.window_handle)
 			}
 
 			framebuffer_resized = false
-			wait_idle_device(device)
+			wait_idle_device(app.device.vk_device)
 
-			destroy_depth_resources(device, depth_image, depth_image_memory, depth_image_view)
-			destroy_color_resources(device, color_image, color_image_memory, color_image_view)
-			destroy_swap_chain_image_views(device, swap_chain_image_views)
-			destroy_swap_chain_images(device, swap_chain_images)
-			destroy_swap_chain(device, swap_chain)
+			destroy_depth_resources(app.device.vk_device, depth_image, depth_image_memory, depth_image_view)
+			destroy_color_resources(app.device.vk_device, color_image, color_image_memory, color_image_view)
+			destroy_swap_chain_image_views(app.device.vk_device, swap_chain_image_views)
+			destroy_swap_chain_images(app.device.vk_device, swap_chain_images)
+			destroy_swap_chain(app.device.vk_device, swap_chain)
 
-			swap_chain, swap_chain_extent, swap_chain_format = create_swap_chain(physical_device, device, surface, window)
-			swap_chain_images = get_swap_chain_images(device, swap_chain)
-			swap_chain_image_views = create_image_views(device, swap_chain_images, swap_chain_format)
-			color_image, color_image_memory, color_image_view = create_color_resources(physical_device, device, swap_chain_format, swap_chain_extent, samples)
-			depth_image, depth_image_memory, depth_image_view = create_depth_resources(physical_device, device, depth_format, swap_chain_extent, samples)
+			swap_chain, swap_chain_extent, swap_chain_format = create_swap_chain(
+				app.physical_device.vk_physical_device,
+				app.device.vk_device,
+				app.window.surface,
+				app.window.window_handle,
+			)
+			swap_chain_images = get_swap_chain_images(app.device.vk_device, swap_chain)
+			swap_chain_image_views = create_image_views(app.device.vk_device, swap_chain_images, swap_chain_format)
+			color_image, color_image_memory, color_image_view = create_color_resources(
+				app.physical_device.vk_physical_device,
+				app.device.vk_device,
+				swap_chain_format,
+				swap_chain_extent,
+				samples,
+			)
+			depth_image, depth_image_memory, depth_image_view = create_depth_resources(
+				app.physical_device.vk_physical_device,
+				app.device.vk_device,
+				depth_format,
+				swap_chain_extent,
+				samples,
+			)
 
 			fmt.println("Swap chain recreation... OK")
 		}
@@ -2170,96 +1878,81 @@ main :: proc() {
 		frame_index = (frame_index + 1) % NB_FRAMES_IN_FLIGHT
 	}
 
-	// Prevent error fence is currently in use.
-	wait_idle_device(device)
+	// Wait to prevent fence-in-use error.
+	wait_idle_device(app.device.vk_device)
 
 	//---------------------
 
 	// Cleanup
 	delete(descriptor_sets)
 	if descriptor_pool != 0 {
-		vk.DestroyDescriptorPool(device, descriptor_pool, nil)
+		vk.DestroyDescriptorPool(app.device.vk_device, descriptor_pool, nil)
 	}
 	for i in 0 ..< NB_FRAMES_IN_FLIGHT {
-		vk.UnmapMemory(device, ubo_buffer_memories[i])
-		vk.FreeMemory(device, ubo_buffer_memories[i], nil)
-		vk.DestroyBuffer(device, ubo_buffers[i], nil)
+		vk.UnmapMemory(app.device.vk_device, ubo_buffer_memories[i])
+		vk.FreeMemory(app.device.vk_device, ubo_buffer_memories[i], nil)
+		vk.DestroyBuffer(app.device.vk_device, ubo_buffers[i], nil)
 	}
 	if ubo_descriptor_set_layout != 0 {
-		vk.DestroyDescriptorSetLayout(device, ubo_descriptor_set_layout, nil)
+		vk.DestroyDescriptorSetLayout(app.device.vk_device, ubo_descriptor_set_layout, nil)
 	}
 	if sampler != 0 {
-		vk.DestroySampler(device, sampler, nil)
+		vk.DestroySampler(app.device.vk_device, sampler, nil)
 	}
 	if image_view != 0 {
-		vk.DestroyImageView(device, image_view, nil)
+		vk.DestroyImageView(app.device.vk_device, image_view, nil)
 	}
 	if image_memory != 0 {
-		vk.FreeMemory(device, image_memory, nil)
+		vk.FreeMemory(app.device.vk_device, image_memory, nil)
 	}
 	if image != 0 {
-		vk.DestroyImage(device, image, nil)
+		vk.DestroyImage(app.device.vk_device, image, nil)
 	}
 	if index_buffer_memory != 0 {
-		vk.FreeMemory(device, index_buffer_memory, nil)
+		vk.FreeMemory(app.device.vk_device, index_buffer_memory, nil)
 	}
 	if index_buffer != 0 {
-		vk.DestroyBuffer(device, index_buffer, nil)
+		vk.DestroyBuffer(app.device.vk_device, index_buffer, nil)
 	}
 	if vertex_buffer_memory != 0 {
-		vk.FreeMemory(device, vertex_buffer_memory, nil)
+		vk.FreeMemory(app.device.vk_device, vertex_buffer_memory, nil)
 	}
 	if vertex_buffer != 0 {
-		vk.DestroyBuffer(device, vertex_buffer, nil)
+		vk.DestroyBuffer(app.device.vk_device, vertex_buffer, nil)
 	}
 	for draw_fence in draw_fences {
 		if draw_fence != 0 {
-			vk.DestroyFence(device, draw_fence, nil)
+			vk.DestroyFence(app.device.vk_device, draw_fence, nil)
 		}
 	}
 	for acquire_semaphore in acquire_semaphores {
 		if acquire_semaphore != 0 {
-			vk.DestroySemaphore(device, acquire_semaphore, nil)
+			vk.DestroySemaphore(app.device.vk_device, acquire_semaphore, nil)
 		}
 	}
 	for submit_semaphore in submit_semaphores {
 		if submit_semaphore != 0 {
-			vk.DestroySemaphore(device, submit_semaphore, nil)
+			vk.DestroySemaphore(app.device.vk_device, submit_semaphore, nil)
 		}
 	}
 	if command_pool != 0 {
-		vk.DestroyCommandPool(device, command_pool, nil)
+		vk.DestroyCommandPool(app.device.vk_device, command_pool, nil)
 	}
 	if pipeline_layout != 0 {
-		vk.DestroyPipelineLayout(device, pipeline_layout, nil)
+		vk.DestroyPipelineLayout(app.device.vk_device, pipeline_layout, nil)
 	}
 	if graphics_pipeline != 0 {
-		vk.DestroyPipeline(device, graphics_pipeline, nil)
+		vk.DestroyPipeline(app.device.vk_device, graphics_pipeline, nil)
 	}
 	if shader_module != 0 {
-		vk.DestroyShaderModule(device, shader_module, nil)
+		vk.DestroyShaderModule(app.device.vk_device, shader_module, nil)
 	}
 
-	destroy_depth_resources(device, depth_image, depth_image_memory, depth_image_view)
-	destroy_color_resources(device, color_image, color_image_memory, color_image_view)
-	destroy_swap_chain_image_views(device, swap_chain_image_views)
-	destroy_swap_chain_images(device, swap_chain_images)
-	destroy_swap_chain(device, swap_chain)
+	destroy_depth_resources(app.device.vk_device, depth_image, depth_image_memory, depth_image_view)
+	destroy_color_resources(app.device.vk_device, color_image, color_image_memory, color_image_view)
+	destroy_swap_chain_image_views(app.device.vk_device, swap_chain_image_views)
+	destroy_swap_chain_images(app.device.vk_device, swap_chain_images)
+	destroy_swap_chain(app.device.vk_device, swap_chain)
 
-	if device != nil {
-		vk.DestroyDevice(device, nil)
-	}
-	if instance != nil && vk.DestroyDebugUtilsMessengerEXT != nil {
-		vk.DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nil)
-	}
-	if surface != 0 {
-		vk.DestroySurfaceKHR(instance, surface, nil)
-	}
-	if instance != nil {
-		vk.DestroyInstance(instance, nil)
-	}
-	if window != nil {
-		glfw.DestroyWindow(window)
-	}
-	glfw.Terminate()
+	destroy_app(&app)
 }

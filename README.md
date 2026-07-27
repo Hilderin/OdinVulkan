@@ -28,18 +28,7 @@ Follow instructions in the [prerequisites section](docs/prerequisites.md).
 
 ## Preview the docs locally
 
-The documentation is a Jekyll site using the Just the Docs theme. To preview it on your machine before pushing:
-
-```bash
-cd docs/
-bundle config set --local path vendor/bundle
-bundle install
-bundle exec jekyll serve --source .
-```
-
-Open `http://127.0.0.1:4000` in your browser. The site rebuilds automatically when you edit a file.
-
-Requires Ruby and Bundler (`sudo apt install ruby ruby-dev build-essential && sudo gem install bundler`).
+See [Setup Documentation Site](docs/setup_documentation_site.md) to build and preview the Jekyll site on your machine.
 
 
 

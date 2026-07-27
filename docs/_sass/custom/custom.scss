@@ -1,8 +1,23 @@
-// Use 4-space-wide tabs in code blocks instead of the browser default of 8.
 div.highlighter-rouge,
 pre,
 code {
   tab-size: 4;
   -moz-tab-size: 4;
   -o-tab-size: 4;
+}
+
+// Code block styling for dark mode - match background with inline code
+div.highlighter-rouge,
+div.highlighter-rouge .highlight,
+pre,
+pre.highlight,
+code {
+  background-color: #35333a !important;
+}
+
+// Inline code styling for dark mode
+code {
+  border: none !important;
+  font-size: inherit;
+  background-color: #35333a !important;
 }

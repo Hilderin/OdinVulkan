@@ -1681,7 +1681,7 @@ find_depth_format :: proc(physical_device: vk.PhysicalDevice) -> vk.Format {
 }
 
 has_stencil_component :: proc(format: vk.Format) -> bool {
-	return format == .D32_SFLOAT_S8_UINT || format == .D32_SFLOAT_S8_UINT
+	return format == .D32_SFLOAT_S8_UINT || format == .D24_UNORM_S8_UINT
 }
 
 create_depth_resources :: proc(

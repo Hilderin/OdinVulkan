@@ -64,7 +64,7 @@ The bit-test `(props.optimalTilingFeatures & features) == features` is the usual
 
 ```c
 has_stencil_component :: proc(format: vk.Format) -> bool {
-	return format == .D32_SFLOAT_S8_UINT || format == .D32_SFLOAT_S8_UINT
+	return format == .D32_SFLOAT_S8_UINT || format == .D24_UNORM_S8_UINT
 }
 ```
 

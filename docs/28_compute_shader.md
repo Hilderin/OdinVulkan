@@ -554,4 +554,4 @@ Errors you might hit:
 
 ## What's next
 
-With compute shaders covered, we've gone past where the online Vulkan tutorial stops. From here you'd branch into the more advanced compute topics the Khronos chapter names at the end - shared memory, subgroups, atomics, async compute on a dedicated queue - and start making decisions specific to whatever you're building. The scaffolding is now in place to experiment.
+With compute shaders covered, `main.odin` has grown to over 2200 lines of tightly coupled code. The next step stops adding features and reorganises: it pulls the reusable foundation (instance creation, device selection, window surface management, error handling) into a small library called `ovk` so each future step doesn't have to duplicate the same boilerplate. Head to [29 - ovk Framework Init](./29_ovk_framework_init.md) if the idea of a single-file megafunction is starting to bother you.

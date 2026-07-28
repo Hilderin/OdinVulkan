@@ -14,6 +14,10 @@ You will need:
 - Slang VSCode Extension (optional but recommended for editing shaders)
 - clang-format (optional but recommended for formatting slang shaders)
 
+Plus, depending on your OS, one of the following VSCode debugger extensions:
+- **Windows**: C/C++ VSCode Extension (for `cppvsdbg` - see below)
+- **Linux**: CodeLLDB VSCode Extension (install it from VSCode the first time you press `F5`)
+
 
 # Odin language
 
@@ -112,6 +116,22 @@ odin build . -debug -define:GLFW_SHARED=true
 ```
 
 
+# C/C++ VSCode Extension (Windows only)
+
+On Windows, the project uses the Visual Studio Windows debugger (`cppvsdbg`) to speed up the debugging process. `cppvsdbg` is provided by the **C/C++** extension from Microsoft.
+
+From VSCode, go to Extensions (Ctrl-Shift-X), search for `C/C++`, select the one published by **Microsoft** and click `install`.
+
+For more information: [C/C++ extension on the VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools).
+
+{: .note }
+> You do not need Visual Studio itself, only the extension. The extension ships its own copy of the debugger engine.
+>
+> The reason we use `cppvsdbg` on Windows instead of CodeLLDB is to speed up debugging. On my PC, creating the Vulkan instance while debugging takes around 2.5 s using CodeLLDB and only around 260 ms with cppvsdbg. cppvsdbg also has the `symbolOptions.moduleFilter` feature, which lets us tell the debugger to skip symbols for `VkLayer_*.dll` (the 117 MB PDB in the Vulkan SDK), which cuts another 100 ms when creating the Vulkan instance. See [VSCode Project Setup](./vscode_setup.md) for the full rationale.
+>
+> On Linux there is no PDB, but LLDB still parses the validation layer's DWARF debug info eagerly. CodeLLDB's `symbols.load-on-demand` setting (already wired up in `launch.json`) keeps it lazy, so the C/C++ extension is not needed there.
+
+
 # Slang VSCode Extension
 I suggest you install the `Slang` extension for VSCode to have color highlighting and errors when editing shaders (.slang files).
 
@@ -184,5 +204,5 @@ Good job, everything is setup correctly!
 ```
 
 
-{: .warning }
-> The first time you start debugging in VSCode, there's a delay of a couple of seconds before the debugger attaches, for some reason. Subsequent runs are fast.
+{: .note }
+> The first time you press `F5` in a step folder, VSCode may prompt you to install the debugger extension required for your OS (C/C++ on Windows, CodeLLDB on Linux). Click `Install` and reload VSCode when asked. Subsequent runs start the debugger immediately.

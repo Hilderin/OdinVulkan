@@ -9,6 +9,7 @@ import la "core:math/linalg"
 import "core:mem"
 import "core:os"
 import "core:path/slashpath"
+import "core:reflect"
 import "core:time"
 
 import ovk "../../libs/ovk"
@@ -72,6 +73,19 @@ running: bool = true
 // Manage the window resize callback
 framebuffer_resized: bool = false
 
+// Check if a result from a Vulkan API call is a success and panic with a detailed error otherwise.
+// Temporary: will be removed once all code uses the error-returning `check` instead.
+check_panic :: proc(result: vk.Result, operation: string, loc := #caller_location) {
+	if result == .SUCCESS {
+		return
+	}
+	p := context.assertion_failure_proc
+	when ODIN_DEBUG {
+		p(operation, reflect.enum_string(result), loc)
+	} else {
+		p(operation, "Vulkan operation failed", loc)
+	}
+}
 
 // Initialize the application.
 init_app :: proc(app: ^App) -> (err: ovk.Error) {
@@ -130,9 +144,7 @@ init_app :: proc(app: ^App) -> (err: ovk.Error) {
 
 
 	// Descriptor sets...
-	app.descriptor_sets = ovk.create_descriptor_sets(
-		{descriptor_pool = &app.descriptor_pool, descriptor_set_layout = &app.descriptor_set_layout, descriptor_count = NB_FRAMES_IN_FLIGHT},
-	) or_return
+	app.descriptor_sets = ovk.create_descriptor_sets({descriptor_pool = &app.descriptor_pool, descriptor_set_layout = &app.descriptor_set_layout}, NB_FRAMES_IN_FLIGHT) or_return
 
 	// Graphics pipeline
 	app.graphics_pipeline = ovk.create_graphics_pipeline(
@@ -167,7 +179,7 @@ create_swap_chain :: proc(app: ^App) -> (err: ovk.Error) {
 	app.swap_chain = ovk.create_swap_chain({device = &app.device, window = &app.window}) or_return
 
 	// Color resources
-	app.samples = ovk.get_max_usable_sample_count(app.physical_device.vk_physical_device)
+	app.samples = ovk.get_max_usable_sample_count(&app.physical_device)
 	app.color_image = ovk.create_image(
 		{
 			device = &app.device,
@@ -183,7 +195,7 @@ create_swap_chain :: proc(app: ^App) -> (err: ovk.Error) {
 	) or_return
 
 	// Depth resources
-	app.depth_format = ovk.find_depth_format(app.physical_device.vk_physical_device) or_return
+	app.depth_format = ovk.find_depth_format(&app.physical_device) or_return
 	app.depth_image = ovk.create_image(
 		{
 			device = &app.device,
@@ -211,7 +223,7 @@ destroy_swap_chain :: proc(app: ^App) {
 // Destroy the application.
 destroy_app :: proc(app: ^App) {
 	ovk.destroy_graphics_pipeline(&app.graphics_pipeline)
-	delete(app.descriptor_sets)
+	ovk.destroy_descriptor_sets(app.descriptor_sets)
 	ovk.destroy_descriptor_pool(&app.descriptor_pool)
 	ovk.destroy_descriptor_set_layout(&app.descriptor_set_layout)
 	ovk.destroy_shader(&app.shader)
@@ -231,7 +243,7 @@ create_command_pool :: proc(device: vk.Device, physical_device: ^ovk.Physical_De
 	}
 
 	command_pool: vk.CommandPool
-	ovk.check_panic(vk.CreateCommandPool(device, &command_pool_create_info, nil, &command_pool), "Failed to create command pool!")
+	check_panic(vk.CreateCommandPool(device, &command_pool_create_info, nil, &command_pool), "Failed to create command pool!")
 
 	return command_pool
 }
@@ -244,7 +256,7 @@ create_command_buffers :: proc(device: vk.Device, command_pool: vk.CommandPool, 
 		commandBufferCount = u32(len(command_buffers)),
 	}
 
-	ovk.check_panic(vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers)), "Failed to create command buffer!")
+	check_panic(vk.AllocateCommandBuffers(device, &alloc_info, raw_data(command_buffers)), "Failed to create command buffer!")
 }
 
 begin_command_buffer :: proc(command_buffer: vk.CommandBuffer, flags: vk.CommandBufferUsageFlags = {}) {
@@ -254,7 +266,7 @@ begin_command_buffer :: proc(command_buffer: vk.CommandBuffer, flags: vk.Command
 		pInheritanceInfo = nil,
 	}
 
-	ovk.check_panic(vk.BeginCommandBuffer(command_buffer, &begin_info), "Failed to begin command buffer!")
+	check_panic(vk.BeginCommandBuffer(command_buffer, &begin_info), "Failed to begin command buffer!")
 }
 
 transition_image_layout :: proc(
@@ -367,7 +379,7 @@ end_rendering :: proc(command_buffer: vk.CommandBuffer) {
 
 
 end_command_buffer :: proc(command_buffer: vk.CommandBuffer) {
-	ovk.check_panic(vk.EndCommandBuffer(command_buffer), "Failed to end command buffer!")
+	check_panic(vk.EndCommandBuffer(command_buffer), "Failed to end command buffer!")
 }
 
 record_command_buffer :: proc(
@@ -489,7 +501,7 @@ create_semaphore :: proc(device: vk.Device) -> vk.Semaphore {
 	}
 
 	semaphore: vk.Semaphore
-	ovk.check_panic(vk.CreateSemaphore(device, &semaphore_create_info, nil, &semaphore), "Failed to create a semaphore!")
+	check_panic(vk.CreateSemaphore(device, &semaphore_create_info, nil, &semaphore), "Failed to create a semaphore!")
 
 	return semaphore
 
@@ -511,7 +523,7 @@ create_fence :: proc(device: vk.Device) -> vk.Fence {
 	}
 
 	fence: vk.Fence
-	ovk.check_panic(vk.CreateFence(device, &fence_create_info, nil, &fence), "Failed to create a fence!")
+	check_panic(vk.CreateFence(device, &fence_create_info, nil, &fence), "Failed to create a fence!")
 
 	return fence
 
@@ -528,12 +540,12 @@ create_fences :: proc(device: vk.Device, fences: []vk.Fence) {
 
 wait_for_fence :: proc(device: vk.Device, fence: vk.Fence) {
 	local_fence := fence
-	ovk.check_panic(vk.WaitForFences(device, 1, &local_fence, true, max(u64)), "Failed to wait for fence!")
+	check_panic(vk.WaitForFences(device, 1, &local_fence, true, max(u64)), "Failed to wait for fence!")
 }
 
 reset_fence :: proc(device: vk.Device, fence: vk.Fence) {
 	local_fence := fence
-	ovk.check_panic(vk.ResetFences(device, 1, &local_fence), "Failed to reset fence!")
+	check_panic(vk.ResetFences(device, 1, &local_fence), "Failed to reset fence!")
 }
 
 acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_fence: vk.Fence, acquire_semaphore: vk.Semaphore) -> (u32, bool) {
@@ -553,7 +565,7 @@ acquire_next_image :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, draw_
 		// Swap chain recreation needed
 		return swapchain_image_index, true
 	} else if result != .SUCCESS {
-		ovk.check_panic(result, "Failed to acquire next image!")
+		check_panic(result, "Failed to acquire next image!")
 	}
 
 	// We need to manually reset the fence to the unsignaled state because a fence does not automatically reset.
@@ -589,7 +601,7 @@ submit_command_buffer :: proc(
 		pSignalSemaphores    = &local_render_finish_semaphore,
 	}
 
-	ovk.check_panic(vk.QueueSubmit(graphics_queue, 1, &submit_info, draw_fence), "Failed to submit command buffer!")
+	check_panic(vk.QueueSubmit(graphics_queue, 1, &submit_info, draw_fence), "Failed to submit command buffer!")
 }
 
 queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_finish_semaphore: vk.Semaphore, graphics_queue: vk.Queue, swapchain_image_index: u32) -> bool {
@@ -611,7 +623,7 @@ queue_present :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR, render_fin
 		// Swap chain recreation needed
 		return true
 	} else {
-		ovk.check_panic(result, "Failed to queue to presentation!")
+		check_panic(result, "Failed to queue to presentation!")
 	}
 
 	return false
@@ -627,7 +639,7 @@ mem_copy_to_buffer :: proc(device: vk.Device, buffer_memory: vk.DeviceMemory, da
 	size := size_of(T) * len(data)
 	dest_data: rawptr
 
-	ovk.check_panic(vk.MapMemory(device, buffer_memory, 0, vk.DeviceSize(size), {}, &dest_data), "Failed to map memory!")
+	check_panic(vk.MapMemory(device, buffer_memory, 0, vk.DeviceSize(size), {}, &dest_data), "Failed to map memory!")
 
 	mem.copy(dest_data, raw_data(data), size)
 
@@ -912,8 +924,8 @@ end_single_time_commands :: proc(device: vk.Device, command_pool: vk.CommandPool
 		commandBufferCount = 1,
 		pCommandBuffers    = &local_command_buffer,
 	}
-	ovk.check_panic(vk.QueueSubmit(queue, 1, &submit_info, 0), "Failed to submit command buffer!")
-	ovk.check_panic(vk.QueueWaitIdle(queue), "Failed to wait on queue completion.")
+	check_panic(vk.QueueSubmit(queue, 1, &submit_info, 0), "Failed to submit command buffer!")
+	check_panic(vk.QueueWaitIdle(queue), "Failed to wait on queue completion.")
 
 
 	vk.FreeCommandBuffers(device, command_pool, 1, &local_command_buffer)
@@ -957,7 +969,7 @@ create_sampler :: proc(physical_device: vk.PhysicalDevice, device: vk.Device) ->
 	}
 
 	sampler: vk.Sampler
-	ovk.check_panic(vk.CreateSampler(device, &sampler_info, nil, &sampler), "Failed to create texture sampler!")
+	check_panic(vk.CreateSampler(device, &sampler_info, nil, &sampler), "Failed to create texture sampler!")
 
 	return sampler
 }
@@ -1058,7 +1070,7 @@ main :: proc() {
 	fmt.println("Vertex buffer... OK")
 
 	// Copy vertex data to memory
-	transfer_to_buffer(&app.device, command_pool, app.device.graphics_queue, vertices, vertex_buffer.vk_buffer)
+	transfer_to_buffer(&app.device, command_pool, app.device.graphics_queue.vk_queue, vertices, vertex_buffer.vk_buffer)
 	fmt.println("Vertex copied to buffer using staging buffer... OK")
 
 	// Create the index buffer on the GPU with a transfer destination flag to allow copy from staging buffer
@@ -1072,11 +1084,11 @@ main :: proc() {
 	fmt.println("Index buffer... OK")
 
 	// Copy index data to memory
-	transfer_to_buffer(&app.device, command_pool, app.device.graphics_queue, indices, index_buffer.vk_buffer)
+	transfer_to_buffer(&app.device, command_pool, app.device.graphics_queue.vk_queue, indices, index_buffer.vk_buffer)
 	fmt.println("Indices copied to buffer using staging buffer... OK")
 
 	// Create texture image
-	image := create_texture_image(&app.device, "../../assets/models/viking_room/viking_room.png", command_pool, app.device.graphics_queue)
+	image := create_texture_image(&app.device, "../../assets/models/viking_room/viking_room.png", command_pool, app.device.graphics_queue.vk_queue)
 	fmt.println("Texture image loaded... OK")
 
 	// Sampler
@@ -1095,7 +1107,7 @@ main :: proc() {
 			fmt.eprintfln("Failed to create ubo_buffer:\n%#v", err_ubo_buffer)
 			os.exit(1)
 		}
-		ovk.check_panic(vk.MapMemory(app.device.vk_device, ubo_buffers[i].vk_device_memory, 0, vk.DeviceSize(size), {}, &ubo_map_memory_ptrs[i]), "Failed to map memory!")
+		check_panic(vk.MapMemory(app.device.vk_device, ubo_buffers[i].vk_device_memory, 0, vk.DeviceSize(size), {}, &ubo_map_memory_ptrs[i]), "Failed to map memory!")
 	}
 	fmt.println("Uniform buffer... OK")
 
@@ -1145,8 +1157,8 @@ main :: proc() {
 			// Record command buffer
 			record_command_buffer(
 				command_buffers[frame_index],
-				app.swap_chain.images[swap_chain_image_index],
-				app.swap_chain.image_views[swap_chain_image_index],
+				app.swap_chain.images[swap_chain_image_index].vk_image,
+				app.swap_chain.images[swap_chain_image_index].vk_image_view,
 				app.swap_chain.extent,
 				app.graphics_pipeline.vk_pipeline,
 				app.graphics_pipeline.vk_pipeline_layout,
@@ -1167,7 +1179,7 @@ main :: proc() {
 				draw_fences[frame_index],
 				acquire_semaphores[frame_index],
 				submit_semaphores[swap_chain_image_index],
-				app.device.graphics_queue,
+				app.device.graphics_queue.vk_queue,
 			)
 
 			// Present the image to the user
@@ -1175,7 +1187,7 @@ main :: proc() {
 				app.device.vk_device,
 				app.swap_chain.vk_swap_chain,
 				submit_semaphores[swap_chain_image_index],
-				app.device.graphics_queue,
+				app.device.graphics_queue.vk_queue,
 				swap_chain_image_index,
 			)
 		}

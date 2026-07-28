@@ -6,9 +6,9 @@ import vk "vendor:vulkan"
 Device :: struct {
 	physical_device: ^Physical_Device,
 	vk_device:       vk.Device,
-	graphics_queue:  vk.Queue,
-	compute_queue:   vk.Queue,
-	transfer_queue:  vk.Queue,
+	graphics_queue:  Queue,
+	compute_queue:   Queue,
+	transfer_queue:  Queue,
 }
 
 // Arguments to create a logical device.
@@ -69,10 +69,10 @@ create_logical_device :: proc(args: Create_Logical_Device_Args) -> (device: Devi
 	// Set the other props on our device.
 	device.physical_device = args.physical_device
 
-	vk.GetDeviceQueue(device.vk_device, device.physical_device.graphics_queue_family, 0, &device.graphics_queue)
-	vk.GetDeviceQueue(device.vk_device, device.physical_device.compute_queue_family, 0, &device.compute_queue)
-	vk.GetDeviceQueue(device.vk_device, device.physical_device.transfer_queue_family, 0, &device.transfer_queue)
-
+	// Get all the queue once...
+	device.graphics_queue = get_queue(&device, device.physical_device.graphics_queue_family)
+	device.compute_queue = get_queue(&device, device.physical_device.compute_queue_family)
+	device.transfer_queue = get_queue(&device, device.physical_device.transfer_queue_family)
 	return
 }
 
@@ -81,4 +81,9 @@ destroy_logical_device :: proc(device: ^Device) {
 	if device != nil && device.vk_device != nil {
 		vk.DestroyDevice(device.vk_device, nil)
 	}
+}
+
+// Wait for the device to be idle.
+wait_idle_device :: proc(device: ^Device) {
+	vk.DeviceWaitIdle(device.vk_device)
 }

@@ -33,7 +33,7 @@ create_shader :: proc(args: Create_Shader_Args) -> (shader: Shader, err: Error) 
 
 	// Complete the struct
 	shader.device = args.device
-	shader.entry_points = args.entry_points
+	shader.entry_points = slice.clone(args.entry_points)
 
 	return
 }
@@ -45,5 +45,9 @@ destroy_shader :: proc(shader: ^Shader) {
 
 	if shader.device != nil && shader.device.vk_device != nil && shader.vk_shader_module != 0 {
 		vk.DestroyShaderModule(shader.device.vk_device, shader.vk_shader_module, nil)
+	}
+
+	if shader.entry_points != nil {
+		delete(shader.entry_points)
 	}
 }

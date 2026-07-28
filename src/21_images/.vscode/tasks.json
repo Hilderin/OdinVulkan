@@ -1,35 +1,35 @@
 {
-   "version": "2.0.0",
-   "tasks": [
-       {
-           "label": "Create build directory - Debug",
-           "type": "shell",
-           "linux": {
-               "command": "mkdir -p ./bin/debug"
-           },
-           "windows": {
-               "command": "cmd /c if not exist .\\bin\\debug mkdir .\\bin\\debug"
-           },
-       },
-       {
-           "label": "Create build directory - Release",
-           "type": "shell",
-           "linux": {
-               "command": "mkdir -p ./bin/release"
-           },
-           "windows": {
-               "command": "cmd /c if not exist .\\bin\\release mkdir .\\bin\\release"
-           }
-       },
-       {
-           "label": "Build - Debug",
-           "group": {
-               "kind": "build",
-               "isDefault": true
-           },
-           "dependsOn": "Create build directory - Debug",
-           "type": "process",
-           "command": "odin",
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Create build directory - Debug",
+            "type": "shell",
+            "linux": {
+                "command": "mkdir -p ./bin/debug"
+            },
+            "windows": {
+                "command": "cmd /c if not exist .\\bin\\debug mkdir .\\bin\\debug"
+            },
+        },
+        {
+            "label": "Create build directory - Release",
+            "type": "shell",
+            "linux": {
+                "command": "mkdir -p ./bin/release"
+            },
+            "windows": {
+                "command": "cmd /c if not exist .\\bin\\release mkdir .\\bin\\release"
+            }
+        },
+        {
+            "label": "Build - Debug",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOn": "Create build directory - Debug",
+            "type": "process",
+            "command": "odin",
             "args": [
                 "build",
                 "${workspaceFolder}",
@@ -79,6 +79,6 @@
                 "-disallow-do",
                 "-warnings-as-errors"
             ]
-       }
-   ]
+        }
+    ]
 }

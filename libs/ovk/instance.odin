@@ -8,7 +8,7 @@ import vk "vendor:vulkan"
 
 
 // Required validation layers.
-validation_layers := []cstring{"VK_LAYER_KHRONOS_validation"}
+validation_layers :: []cstring{"VK_LAYER_KHRONOS_validation"}
 
 // Struct containing the Vulkan instance and init information.
 Instance :: struct {
@@ -128,6 +128,31 @@ destroy_instance :: proc(instance: ^Instance) {
 
 	vk.DestroyInstance(instance.vk_instance, nil)
 }
+
+
+// Check if all layers in parameters are supported by the device.
+are_layers_supported :: proc(required_layers: []cstring) -> b32 {
+	layer_count: u32
+	vk.EnumerateInstanceLayerProperties(&layer_count, nil)
+	available_layers := make([]vk.LayerProperties, layer_count)
+	defer delete(available_layers)
+	vk.EnumerateInstanceLayerProperties(&layer_count, raw_data(available_layers))
+
+	for req_layer in required_layers {
+		found := false
+		for &layer in available_layers {
+			if cstring(&layer.layerName[0]) == req_layer {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 
 // Callback executed when a debug message is received.
 @(private = "file")

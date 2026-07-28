@@ -21,7 +21,8 @@ There's no new Vulkan feature in this step. The viking room still rotates, the M
 - **libs/ovk/instance.odin** - `Instance` struct with `create_instance` and `destroy_instance`, debug messenger management.
 - **libs/ovk/physical_device.odin** - `Physical_Device` struct that caches queue family indices, `get_physical_device` with scoring.
 - **libs/ovk/logical_device.odin** - `Device` struct holding the `vk.Device` and queues, `create_logical_device` / `destroy_logical_device`.
-- **libs/ovk/utils.odin** - `check` (returns `Error`) and `check_panic` (panics) for Vulkan results, `are_layers_supported`.
+- **libs/ovk/error.odin** - `check` (returns `Error`) and `assert` for Vulkan results.
+- **libs/ovk/instance.odin** - also contains `are_layers_supported` for checking validation layers.
 - **src/29_ovk_framework_init.code-workspace** - a multi-root workspace that includes both `src/29_ovk_framework_init/` and `libs/ovk/`. Opening this file in VSCode shows both folders side by side, which is handy now that the code is split across two directories.
 - **.vscode/settings.json** - hides `*.code-workspace` from the VSCode explorer so the workspace file doesn't clutter the file list.
 - **src/29_ovk_framework_init/main.odin** - about 300 lines shorter than step 27, uses the library through `init_app` / `destroy_app`.
@@ -52,7 +53,7 @@ Error :: union {
 
 Two error variants. `General_Error` for things like "GLFW failed to initialise" where there's no Vulkan result code. `Vulkan_Error` for actual API failures, with the `vk.Result` and the caller location so you can find where it happened. The `Error` union lets library functions return errors with `or_return` instead of calling `os.exit(1)` inline.
 
-The old code used `vk_check` everywhere, which panics on any error. The library now uses `check` which returns an `Error` - the library never panics. The remaining parts of `main.odin` still use `check_panic` (same behaviour as the old `vk_check`) as a temporary measure, until they are moved into the library too.
+The old code used `vk_check` everywhere, which panics on any error. The library now uses `check` which returns an `Error` - the library never panics. The remaining parts of `main.odin` still contain panic-based error checks inline, which are replaced as each section moves into the library.
 
 ### GLFW wrapper (`libs/ovk/glfw.odin`)
 
@@ -126,9 +127,9 @@ The compute and transfer fallbacks are worth noting. If a dedicated compute or t
 Device :: struct {
     physical_device: ^Physical_Device,
     vk_device:       vk.Device,
-    graphics_queue:  vk.Queue,
-    compute_queue:   vk.Queue,
-    transfer_queue:  vk.Queue,
+    graphics_queue:  Queue,
+    compute_queue:   Queue,
+    transfer_queue:  Queue,
 }
 ```
 
@@ -136,34 +137,27 @@ The `Device` struct doesn't just store the `vk.Device` handle - it also stores t
 
 The `physical_device` pointer keeps a back-reference to the physical device, which some operations (like memory allocation) need.
 
-### The two check functions (`libs/ovk/utils.odin`)
+### Error helpers (`libs/ovk/error.odin`)
 
-`check_panic` is temporary - it exists only to keep the old behaviour in the parts of `main.odin` that haven't been refactored yet. Once everything is in the library, `check_panic` will be removed and all error handling will go through `check`.
+The `Error` union (`General_Error | Vulkan_Error | Assert_Error`) lives in `error.odin`, alongside two helpers:
 
 ```c
-check_panic :: proc(result: vk.Result, operation: string, loc := #caller_location) {
-    if result == .SUCCESS { return }
-    p := context.assertion_failure_proc
-    when ODIN_DEBUG {
-        p(operation, reflect.enum_string(result), loc)
-    } else {
-        p(operation, "Vulkan operation failed", loc)
-    }
-}
-
 check :: proc(result: vk.Result, operation: string, loc := #caller_location) -> (err: Error) {
     if result == .SUCCESS { return }
     err = Vulkan_Error{result, fmt.tprint(operation, reflect.enum_string(result)), loc}
     return
 }
+
+assert :: proc(condition: bool, message: string, args: ..any, loc := #caller_location) -> (err: Error) {
+    if condition { return }
+    err = Assert_Error{fmt.tprintf(message, args), loc}
+    return
+}
 ```
 
-Two variants with the same surface but different behaviour:
+`check` wraps a `vk.Result` - returns `nil` on `.SUCCESS` or a `Vulkan_Error` with the result code and caller location on failure. `assert` checks a boolean condition and returns an `Assert_Error` if false. Both are designed for `or_return` chaining: you write `check(vk.CreateInstance(...)) or_return` and the error propagates to the caller without crashing.
 
-- `check_panic` - crashes on failure. Used in the application code (`main.odin`) where there's no sensible way to recover.
-- `check` - returns an `Error`. Used inside the library (`instance.odin`, `logical_device.odin`) so the caller can decide how to handle the failure.
-
-Both include `#caller_location` so the error message points to the actual call site, not to the utility function itself.
+The old code used `vk_check` which panics on any error. `check` is the replacement - it never panics, it returns an error struct for the caller to handle.
 
 
 ## How the application changed
@@ -211,11 +205,9 @@ destroy_app :: proc(app: ^App) {
 
 Order matters - the device must be destroyed before the instance, the window surface must be destroyed before the instance, and GLFW is terminated last. Each `destroy_*` function checks for nil / zero handles before calling Vulkan or GLFW, so double-destruction is safe.
 
-### `check_panic` is a temporary stand-in
+### Error handling in main.odin
 
-You'll see `ovk.check_panic` everywhere in `main.odin` where the old `vk_check` was. It keeps the same behaviour (crash on error) while only the foundation layer is extracted. Once the rest of the Vulkan objects (swap chain, buffers, pipelines, etc.) move into ovk, `check_panic` will be removed and everything will use `check` with `or_return`. It's a stepping stone, not the final design.
-
-Throughout the remaining code in `main.odin`, every call to the old `vk_check` was replaced with `ovk.check_panic`. Same behaviour, different package. This is the only change in most of the swap chain, pipeline, buffer, image, and command buffer functions - the code itself is identical to step 27.
+The parts of `main.odin` that haven't been refactored yet still check Vulkan results inline with `os.exit(1)`. These will be migrated to `or_return` as they move into the library in later steps. For now, the pattern is mixed - the library returns errors cleanly, and the application code handles failures the old way.
 
 ### `create_command_pool` uses the cached queue
 
@@ -240,7 +232,7 @@ The swap chain, image views, depth resources, color resources, shader modules, p
 
 ## The ovk API design in a sentence
 
-ovk is a thin wrapper that turns the Vulkan two-step initialisation (enumerate + choose) into a single call that returns a struct with the useful handles. It does not abstract away Vulkan concepts - you still work with `vk.Queue`, `vk.Image`, `vk.Pipeline` etc. directly. It just removes the "check layers are installed, set up debug messenger, find queue families, pick the right device" preamble that's the same in every project.
+ovk is a thin wrapper that turns the Vulkan two-step initialisation (enumerate + choose) into a single call that returns a struct with the useful handles. It does not abstract away Vulkan concepts - you still work with `Queue`, `vk.Image`, `vk.Pipeline` etc. directly. It just removes the "check layers are installed, set up debug messenger, find queue families, pick the right device" preamble that's the same in every project.
 
 The decision to use `Create_*_Args` parameter structs everywhere was deliberate. Vulkan create info structs already work this way - you fill a struct and pass it. ovk does the same for its own API. The result is that adding a new optional parameter (like a custom allocator callback, or a specific queue priority) doesn't break existing callers.
 

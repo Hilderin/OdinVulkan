@@ -21,6 +21,7 @@ Same viking room with MSAA, same rendering loop. Nothing changes visually. What 
 - **libs/ovk/shader_compiler.odin** - moved out of `main.odin` into the library.
 - **libs/ovk/graphics_pipeline.odin** - wraps the pipeline + pipeline layout into a `Graphics_Pipeline` struct.
 - **libs/ovk/descriptor_set_layout.odin / descriptor_pool.odin / descriptor_set.odin** - each wrapper owns its Vulkan handle and knows how to destroy it.
+- **libs/ovk/descriptor_set.odin** also introduces a pattern that will appear elsewhere: two creation methods - `create_descriptor_set` (singular, returns one `Descriptor_Set`) and `create_descriptor_sets` (plural, takes a count and returns `[]Descriptor_Set`).
 
 The pattern is the same for every object: a struct that bundles the Vulkan handle with a back-reference to the parent `Device`, a `create_*` function that takes a `Create_*_Args` struct, and a `destroy_*` function that checks for nil handles before calling Vulkan.
 
@@ -92,6 +93,32 @@ Create_Image_Args :: struct {
 ```
 
 
+## Single vs array: two creation methods
+
+Most ovk objects are one-to-one with a Vulkan handle - one `Buffer` wraps one `vk.Buffer`. But some objects, like descriptor sets, are commonly created in batches. Vulkan's `AllocateDescriptorSets` already works this way: you pass a count and get an array back.
+
+`descriptor_set.odin` exposes both paths:
+
+```c
+Create_Descriptor_Sets_Args :: struct {
+    descriptor_pool:       ^Descriptor_Pool,
+    descriptor_set_layout: ^Descriptor_Set_Layout,
+}
+
+// Singular: returns a single Descriptor_Set value.
+create_descriptor_set :: proc(args: Create_Descriptor_Sets_Args) -> (descriptor_set: Descriptor_Set, err: Error)
+
+// Plural: takes a count, returns a slice.
+create_descriptor_sets :: proc(args: Create_Descriptor_Sets_Args, descriptor_count: u32) -> (descriptor_sets: []Descriptor_Set, err: Error)
+```
+
+The singular version is a thin wrapper around the plural one - it calls `create_descriptor_sets(args, 1)`, takes the first element, frees the temporary slice, and returns a single `Descriptor_Set`.
+
+The `Create_Descriptor_Sets_Args` struct holds the shared dependencies (pool and layout) but **not** the count. The count is a separate parameter on `create_descriptor_sets` only. This way the singular `create_descriptor_set` never receives a count at all - there's no risk of passing `1` to the wrong function.
+
+This "args struct for dependencies, count as a separate parameter" will be the pattern for every ovk function that can create multiple objects at once. It keeps the singular API clean (no unused count parameter) and the plural API explicit (you always see how many you're creating).
+
+
 ## The swap chain owns everything
 
 In step 29 the swap chain was a loose collection of local variables: `swap_chain`, `swap_chain_extent`, `swap_chain_format`, `swap_chain_images`, `swap_chain_image_views`. Creating and destroying them was done with separate functions that each had their own parameter list.
@@ -105,8 +132,7 @@ Swap_Chain :: struct {
     extent:        vk.Extent2D,
     format:        vk.Format,
     color_space:   vk.ColorSpaceKHR,
-    images:        []vk.Image,
-    image_views:   []vk.ImageView,
+    images:        []Image,
 }
 ```
 
@@ -118,9 +144,9 @@ The swap chain has its own `create_swap_chain` / `destroy_swap_chain` pair in `m
 create_swap_chain :: proc(app: ^App) -> (err: ovk.Error) {
     app.swap_chain = ovk.create_swap_chain({...}) or_return
 
-    app.samples = ovk.get_max_usable_sample_count(app.physical_device.vk_physical_device)
+    app.samples = ovk.get_max_usable_sample_count(&app.physical_device)
     app.color_image = ovk.create_image({...}) or_return
-    app.depth_format = ovk.find_depth_format(app.physical_device.vk_physical_device) or_return
+    app.depth_format = ovk.find_depth_format(&app.physical_device) or_return
     app.depth_image = ovk.create_image({...}) or_return
     return
 }
@@ -205,7 +231,7 @@ And the cleanup in `destroy_app` reflects the creation order, reversed:
 ```c
 destroy_app :: proc(app: ^App) {
     ovk.destroy_graphics_pipeline(&app.graphics_pipeline)
-    delete(app.descriptor_sets)
+    ovk.destroy_descriptor_sets(app.descriptor_sets)
     ovk.destroy_descriptor_pool(&app.descriptor_pool)
     ovk.destroy_descriptor_set_layout(&app.descriptor_set_layout)
     ovk.destroy_shader(&app.shader)
@@ -217,9 +243,9 @@ destroy_app :: proc(app: ^App) {
 }
 ```
 
-The `delete(app.descriptor_sets)` frees the Odin slice; the Vulkan descriptor sets themselves are freed when the pool is destroyed. That's why `destroy_descriptor_pool` comes after `delete` - the pool must still exist while we free the slice memory, but the Vulkan handles inside the `Descriptor_Set` structs don't need individual cleanup.
+`destroy_descriptor_sets` frees both the Odin slice and, if the pool was created with `{.FREE_DESCRIPTOR_SET}`, the individual Vulkan descriptor sets. The flags live on `Descriptor_Pool` - the set just reads them from its pool reference, which avoids storing the same flag on every `Descriptor_Set` struct. If the pool was created with `flags = {}` (the default), `vkFreeDescriptorSets` is skipped and the sets are cleaned up when `destroy_descriptor_pool` runs.
 
 
 ## What's next
 
-This step gets ovk to the point where every major Vulkan object has a wrapper. The command buffer and rendering code is still raw - `begin_command_buffer`, `transition_image_layout`, `begin_rendering`, `end_rendering`, `submit_command_buffer`, and friends still live in `main.odin`. The next step will wrap command pools and command buffers, and pull the recording helpers into the library so the rendering loop becomes as clean as the initialisation path.
+This step gets ovk to the point where every major Vulkan object has a wrapper. The command buffer and rendering code is still raw - `begin_command_buffer`, `transition_image_layout`, `begin_rendering`, `end_rendering`, `submit_command_buffer`, and friends still live in `main.odin`. The [next step](./31_ovk_framework_commands.md) wraps command pools and command buffers, pulls the recording helpers into the library, and redistributes the remaining loose helpers into their proper files so the rendering loop becomes as clean as the initialisation path.

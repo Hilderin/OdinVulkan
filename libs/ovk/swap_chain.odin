@@ -10,8 +10,7 @@ Swap_Chain :: struct {
 	extent:        vk.Extent2D,
 	format:        vk.Format,
 	color_space:   vk.ColorSpaceKHR,
-	images:        []vk.Image,
-	image_views:   []vk.ImageView,
+	images:        []Image,
 }
 
 Create_Swap_Chain_Args :: struct {
@@ -34,7 +33,7 @@ create_swap_chain :: proc(args: Create_Swap_Chain_Args) -> (swap_chain: Swap_Cha
 	available_formats := get_surface_formats(args.device.physical_device.vk_physical_device, args.window.surface)
 	defer delete(available_formats)
 
-	swap_chain_format := choose_swap_surface_format(available_formats)
+	swap_chain_format := choose_swap_surface_format(available_formats) or_return
 	swap_chain.format = swap_chain_format.format
 	swap_chain.color_space = swap_chain_format.colorSpace
 
@@ -62,10 +61,7 @@ create_swap_chain :: proc(args: Create_Swap_Chain_Args) -> (swap_chain: Swap_Cha
 
 
 	// Create swap chain images.
-	swap_chain.images = get_swap_chain_images(args.device.vk_device, swap_chain.vk_swap_chain)
-
-	// Create swap chain image views.
-	swap_chain.image_views = create_image_views(args.device.vk_device, swap_chain.images, swap_chain.format) or_return
+	swap_chain.images = get_swap_chain_images(args.device, swap_chain.vk_swap_chain, swap_chain.extent, swap_chain.format) or_return
 
 	return
 }
@@ -76,21 +72,75 @@ destroy_swap_chain :: proc(swap_chain: ^Swap_Chain) {
 		return
 	}
 
-	if swap_chain.image_views != nil {
-		if swap_chain.device != nil && swap_chain.device.vk_device != nil {
-			for image_view in swap_chain.image_views {
-				vk.DestroyImageView(swap_chain.device.vk_device, image_view, nil)
+	if swap_chain.images != nil {
+		// We cannot use the destroy_image because it's a builtin image from the swapchain,
+		// but we need to create the image view that we created ourself.
+		for &image in swap_chain.images {
+			if image.device != nil && image.device.vk_device != nil && image.vk_image_view != 0 {
+				vk.DestroyImageView(image.device.vk_device, image.vk_image_view, nil)
 			}
 		}
-		delete(swap_chain.image_views)
-	}
 
-	if swap_chain.images != nil {
 		delete(swap_chain.images)
 	}
+
 	if swap_chain.device != nil && swap_chain.device.vk_device != nil && swap_chain.vk_swap_chain != 0 {
 		vk.DestroySwapchainKHR(swap_chain.device.vk_device, swap_chain.vk_swap_chain, nil)
 	}
+}
+
+// Acquire the next image for the swap chain and returns it's index.
+acquire_next_image :: proc(swap_chain: ^Swap_Chain, draw_fence: ^Fence, acquire_semaphore: ^Semaphore) -> (swapchain_image_index: u32, needs_recreation: bool, err: Error) {
+
+	// Wait until the last frame has finished rendering.
+	wait_for_fence(draw_fence)
+
+
+	// Acquire next image.
+	result := vk.AcquireNextImageKHR(swap_chain.device.vk_device, swap_chain.vk_swap_chain, max(u64), acquire_semaphore.vk_semaphore, 0, &swapchain_image_index)
+
+	// Special results from AcquireNextImageKHR:
+	// - VK_SUBOPTIMAL_KHR: A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully.
+	// - VK_ERROR_OUT_OF_DATE_KHR: (usually when the window is resized) A surface has changed in such a way that it is no longer compatible with the swapchain, and further presentation requests using the swapchain will fail. Applications must query the new surface properties and recreate their swapchain if they wish to continue presenting to the surface.
+	if result == .SUBOPTIMAL_KHR || result == .ERROR_OUT_OF_DATE_KHR {
+		// Swap chain recreation needed
+		needs_recreation = true
+		return
+	} else if result != .SUCCESS {
+		err = check(result, "Failed to acquire next image!")
+		return
+	}
+
+	// We need to manually reset the fence to the unsignaled state because a fence does not automatically reset.
+	reset_fence(draw_fence)
+
+	return
+
+}
+
+// Queue the presentation of the swap chain.
+queue_present :: proc(swap_chain: ^Swap_Chain, render_finish_semaphore: ^Semaphore, graphics_queue: ^Queue, swapchain_image_index: u32) -> (needs_recreation: bool, err: Error) {
+	local_swapchain_image_index := swapchain_image_index
+
+	present_info := vk.PresentInfoKHR {
+		sType              = .PRESENT_INFO_KHR,
+		pSwapchains        = &swap_chain.vk_swap_chain,
+		swapchainCount     = 1,
+		pWaitSemaphores    = &render_finish_semaphore.vk_semaphore,
+		waitSemaphoreCount = 1,
+		pImageIndices      = &local_swapchain_image_index,
+	}
+
+	result := vk.QueuePresentKHR(graphics_queue.vk_queue, &present_info)
+	if result == .SUBOPTIMAL_KHR || result == .ERROR_OUT_OF_DATE_KHR {
+		// Swap chain recreation needed
+		needs_recreation = true
+		return
+	} else {
+		check(result, "Failed to queue to presentation!") or_return
+	}
+
+	return
 }
 
 @(private = "file")
@@ -132,15 +182,17 @@ get_surface_formats :: proc(physical_device: vk.PhysicalDevice, surface: vk.Surf
 }
 
 @(private = "file")
-choose_swap_surface_format :: proc(available_formats: []vk.SurfaceFormatKHR) -> vk.SurfaceFormatKHR {
-	assert(len(available_formats) > 0)
+choose_swap_surface_format :: proc(available_formats: []vk.SurfaceFormatKHR) -> (surface_format: vk.SurfaceFormatKHR, err: Error) {
+	assert(len(available_formats) > 0, "No avaiable formats for the surface.") or_return
 
 	for format in available_formats {
 		if format.format == .B8G8R8A8_SRGB && format.colorSpace == .SRGB_NONLINEAR {
-			return format
+			surface_format = format
+			return
 		}
 	}
-	return available_formats[0]
+	surface_format = available_formats[0]
+	return
 }
 
 @(private = "file")
@@ -170,18 +222,31 @@ choose_present_mode :: proc(present_modes: []vk.PresentModeKHR) -> vk.PresentMod
 }
 
 @(private = "file")
-get_swap_chain_images :: proc(device: vk.Device, swap_chain: vk.SwapchainKHR) -> []vk.Image {
+get_swap_chain_images :: proc(device: ^Device, swap_chain: vk.SwapchainKHR, extent: vk.Extent2D, format: vk.Format) -> (images: []Image, err: Error) {
 	image_count: u32
-	vk.GetSwapchainImagesKHR(device, swap_chain, &image_count, nil)
+	vk.GetSwapchainImagesKHR(device.vk_device, swap_chain, &image_count, nil)
 
-	if image_count == 0 {
-		return nil
+	assert(image_count != 0, "No image in the swap chain.") or_return
+
+	images = make([]Image, image_count)
+	local_images := make([]vk.Image, image_count)
+	defer delete(local_images)
+
+	vk.GetSwapchainImagesKHR(device.vk_device, swap_chain, &image_count, raw_data(local_images))
+
+	image_views := create_image_views(device.vk_device, local_images, format) or_return
+
+	for i in 0 ..< len(images) {
+		images[i].device = device
+		images[i].vk_image = local_images[i]
+		images[i].vk_image_view = image_views[i]
+		images[i].width = extent.width
+		images[i].height = extent.height
 	}
 
-	images := make([]vk.Image, image_count)
-	vk.GetSwapchainImagesKHR(device, swap_chain, &image_count, raw_data(images))
+	delete(image_views)
 
-	return images
+	return
 }
 
 @(private = "file")

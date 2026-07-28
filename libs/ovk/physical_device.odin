@@ -22,10 +22,7 @@ Get_Physical_Device_Args :: struct {
 get_physical_device :: proc(args: Get_Physical_Device_Args) -> (physical_device: Physical_Device, err: Error) {
 	dev_count: u32
 	vk.EnumeratePhysicalDevices(args.instance.vk_instance, &dev_count, nil)
-	if dev_count == 0 {
-		err = General_Error{"Failed to find GPUs with Vulkan support, no GPU found."}
-		return
-	}
+	assert(dev_count != 0, "Failed to find GPUs with Vulkan support, no GPU found.") or_return
 
 	physical_devices := make([]vk.PhysicalDevice, dev_count)
 	defer delete(physical_devices)
@@ -42,10 +39,7 @@ get_physical_device :: proc(args: Get_Physical_Device_Args) -> (physical_device:
 		}
 	}
 
-	if best_device == nil {
-		err = General_Error{"Failed to find a suitable GPU."}
-		return
-	}
+	assert(best_device != nil, "Failed to find a suitable GPU.") or_return
 
 	// Create the physical device.
 	physical_device = {
@@ -55,10 +49,8 @@ get_physical_device :: proc(args: Get_Physical_Device_Args) -> (physical_device:
 	// Search for the graphics queue
 	ok: bool
 	physical_device.graphics_queue_family, ok = find_queue_families(best_device, {.GRAPHICS}, args.surface)
-	if !ok {
-		err = General_Error{"Failed to find the graphics queue."}
-		return
-	}
+	assert(ok, "Failed to find the graphics queue.") or_return
+
 	// Search for the compute queue
 	physical_device.compute_queue_family, ok = find_queue_families(best_device, {.COMPUTE}, 0)
 	if !ok {
@@ -207,4 +199,61 @@ score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR, required
 	score += int(props.limits.maxImageDimension2D)
 
 	return score
+}
+
+
+// Search for memory type on a physical device
+find_memory_type :: proc(physical_device: ^Physical_Device, type_filter: u32, properties: vk.MemoryPropertyFlags) -> (u32, Error) {
+	mem_properties: vk.PhysicalDeviceMemoryProperties
+	vk.GetPhysicalDeviceMemoryProperties(physical_device.vk_physical_device, &mem_properties)
+
+	for i in 0 ..< mem_properties.memoryTypeCount {
+		if (type_filter & (1 << i)) != 0 && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties {
+			return i, nil
+		}
+	}
+
+
+	return 0, General_Error{"Failed to find memory type."}
+}
+
+
+// Returns the maximum usable sample for a physical device.
+get_max_usable_sample_count :: proc(physical_device: ^Physical_Device) -> vk.SampleCountFlags {
+	physical_device_props: vk.PhysicalDeviceProperties
+	vk.GetPhysicalDeviceProperties(physical_device.vk_physical_device, &physical_device_props)
+
+	counts := physical_device_props.limits.framebufferColorSampleCounts & physical_device_props.limits.framebufferDepthSampleCounts
+	if (counts & {._64}) == {._64} {return {._64}}
+	if (counts & {._32}) == {._32} {return {._32}}
+	if (counts & {._16}) == {._16} {return {._16}}
+	if (counts & {._8}) == {._8} {return {._8}}
+	if (counts & {._4}) == {._4} {return {._4}}
+	if (counts & {._2}) == {._2} {return {._2}}
+
+	return {._1}
+}
+
+// Return the best format for the depth image
+find_depth_format :: proc(physical_device: ^Physical_Device) -> (vk.Format, Error) {
+	return find_supported_format(physical_device.vk_physical_device, {.D32_SFLOAT, .D32_SFLOAT_S8_UINT, .D24_UNORM_S8_UINT}, .OPTIMAL, {.DEPTH_STENCIL_ATTACHMENT})
+}
+
+// Find the best format according the the passed arguments.
+@(private = "file")
+find_supported_format :: proc(physical_device: vk.PhysicalDevice, candidates: []vk.Format, tiling: vk.ImageTiling, features: vk.FormatFeatureFlags) -> (vk.Format, Error) {
+	for format in candidates {
+		props: vk.FormatProperties
+		vk.GetPhysicalDeviceFormatProperties(physical_device, format, &props)
+
+		if tiling == .LINEAR && (props.linearTilingFeatures & features) == features {
+			return format, nil
+		}
+
+		if tiling == .OPTIMAL && (props.optimalTilingFeatures & features) == features {
+			return format, nil
+		}
+	}
+
+	return {}, General_Error{"Failed to find a supported format"}
 }

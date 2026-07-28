@@ -38,9 +38,9 @@ Shape :: struct {
 }
 
 Vertex_Index :: struct {
-	v_idx:  int,
-	vt_idx: int,
-	vn_idx: int,
+	v_idx:  u32,
+	vt_idx: u32,
+	vn_idx: u32,
 }
 
 Attrib :: struct {
@@ -62,14 +62,14 @@ OBJ :: struct {
 // OBJ format uses 1-based indexing, and negative values for relative indexing.
 // This converts them to 0-based absolute indices.
 @(private)
-fix_index :: proc(idx: int, n: int) -> int {
+fix_index :: proc(idx: int, n: int) -> u32 {
 	if idx > 0 {
-		return idx - 1
+		return u32(idx - 1)
 	}
 	if idx == 0 {
 		return 0
 	}
-	return n + idx
+	return u32(n + idx)
 }
 
 @(private)

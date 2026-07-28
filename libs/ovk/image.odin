@@ -8,6 +8,8 @@ Image :: struct {
 	vk_image:         vk.Image,
 	vk_device_memory: vk.DeviceMemory,
 	vk_image_view:    vk.ImageView,
+	width:            u32,
+	height:           u32,
 }
 
 
@@ -45,6 +47,8 @@ create_image :: proc(args: Create_Image_Args) -> (image: Image, err: Error) {
 	check(vk.CreateImage(args.device.vk_device, &image_info, nil, &image.vk_image), "Failed to create image!") or_return
 
 	image.device = args.device
+	image.width = args.width
+	image.height = args.height
 
 
 	// Memory allocation
@@ -52,7 +56,7 @@ create_image :: proc(args: Create_Image_Args) -> (image: Image, err: Error) {
 	vk.GetImageMemoryRequirements(args.device.vk_device, image.vk_image, &mem_requirements)
 
 	// Find the memory type based on mem requirements and requested properties.
-	memory_type_index := find_memory_type(args.device.physical_device.vk_physical_device, mem_requirements.memoryTypeBits, args.mem_properties) or_return
+	memory_type_index := find_memory_type(args.device.physical_device, mem_requirements.memoryTypeBits, args.mem_properties) or_return
 
 	// Allocate...
 	alloc_info := vk.MemoryAllocateInfo {

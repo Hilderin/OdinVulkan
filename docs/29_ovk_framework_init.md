@@ -20,7 +20,7 @@ There's no new Vulkan feature in this step. The viking room still rotates, the M
 - **libs/ovk/glfw.odin** - GLFW init/destroy, window creation, surface creation, all bundled into a `Window` struct.
 - **libs/ovk/instance.odin** - `Instance` struct with `create_instance` and `destroy_instance`, debug messenger management.
 - **libs/ovk/physical_device.odin** - `Physical_Device` struct that caches queue family indices, `get_physical_device` with scoring.
-- **libs/ovk/logical_device.odin** - `Device` struct holding the `vk.Device` and queues, `create_logical_device` / `destroy_device`.
+- **libs/ovk/logical_device.odin** - `Device` struct holding the `vk.Device` and queues, `create_logical_device` / `destroy_logical_device`.
 - **libs/ovk/utils.odin** - `check` (returns `Error`) and `check_panic` (panics) for Vulkan results, `are_layers_supported`.
 - **src/29_ovk_framework_init.code-workspace** - a multi-root workspace that includes both `src/29_ovk_framework_init/` and `libs/ovk/`. Opening this file in VSCode shows both folders side by side, which is handy now that the code is split across two directories.
 - **.vscode/settings.json** - hides `*.code-workspace` from the VSCode explorer so the workspace file doesn't clutter the file list.
@@ -202,7 +202,7 @@ Cleanup is symmetric in `destroy_app`:
 
 ```c
 destroy_app :: proc(app: ^App) {
-    ovk.destroy_device(&app.device)
+    ovk.destroy_logical_device(&app.device)
     ovk.destroy_window(&app.window)
     ovk.destroy_instance(&app.instance)
     ovk.destroy_glfw()
@@ -247,4 +247,4 @@ The decision to use `Create_*_Args` parameter structs everywhere was deliberate.
 
 ## What's next
 
-The foundation layer (instance, physical device, logical device, window) is now in the library. The next step will wrap more Vulkan objects - swap chain, command pool, buffers, images - so the main code shrinks further. Eventually the goal is to have ovk handle the full lifecycle of every Vulkan resource, while keeping the application code focused on what makes each step different.
+The foundation layer (instance, physical device, logical device, window) is now in the library. The [next step](./30_ovk_framework_objects.md) wraps the remaining Vulkan objects - swap chain, buffers, images, shader modules, graphics pipelines, descriptor sets - so the main code shrinks further. Eventually the goal is to have ovk handle the full lifecycle of every Vulkan resource, while keeping the application code focused on what makes each step different.

@@ -100,7 +100,7 @@ init_app :: proc(app: ^App) -> (err: ovk.Error) {
 
 // Destroy the application.
 destroy_app :: proc(app: ^App) {
-	ovk.destroy_device(&app.device)
+	ovk.destroy_logical_device(&app.device)
 	ovk.destroy_window(&app.window)
 	ovk.destroy_instance(&app.instance)
 	ovk.destroy_glfw()

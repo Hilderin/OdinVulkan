@@ -76,8 +76,8 @@ create_logical_device :: proc(args: Create_Logical_Device_Args) -> (device: Devi
 	return
 }
 
-// Destroy the device
-destroy_device :: proc(device: ^Device) {
+// Destroy the logical device
+destroy_logical_device :: proc(device: ^Device) {
 	if device != nil && device.vk_device != nil {
 		vk.DestroyDevice(device.vk_device, nil)
 	}

@@ -52,6 +52,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 27 | [Multisampling](./27_multisampling.md) | Enable MSAA so triangle edges at the silhouette stop staircase-shimmering. |
 | 28 | [Compute Shader](./28_compute_shader.md) | Bonus chapter: a GPU-driven particle system using a compute shader and shader storage buffers, no CPU round trip per frame. |
 | 29 | [ovk Framework Init](./29_ovk_framework_init.md) | First refactoring step: extract instance, device, window, and GLFW boilerplate into the reusable `ovk` library. No new features, just cleaner code. |
+| 30 | [ovk Framework Objects](./30_ovk_framework_objects.md) | Second refactoring step: wrap swap chain, buffers, images, shader modules, pipelines, descriptor sets into the `ovk` library. |
 
 ## References
 

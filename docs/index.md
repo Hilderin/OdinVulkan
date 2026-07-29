@@ -53,6 +53,8 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 28 | [Compute Shader](./28_compute_shader.md) | Bonus chapter: a GPU-driven particle system using a compute shader and shader storage buffers, no CPU round trip per frame. |
 | 29 | [ovk Framework Init](./29_ovk_framework_init.md) | First refactoring step: extract instance, device, window, and GLFW boilerplate into the reusable `ovk` library. No new features, just cleaner code. |
 | 30 | [ovk Framework Objects](./30_ovk_framework_objects.md) | Second refactoring step: wrap swap chain, buffers, images, shader modules, pipelines, descriptor sets into the `ovk` library. |
+| 31 | [ovk Framework Commands](./31_ovk_framework_commands.md) | Third refactoring step: move command pools, command buffers, recording helpers, fences, semaphores, queues, buffer transfers, sampler and model loading into `ovk`; split up `utils.odin`. |
+| 32 | [ovk Framework Helpers](./32_ovk_framework_helpers.md) | Fourth refactoring step: bundle the swap chain, color/depth images, semaphores, fences and the acquire/submit/present cycle into a `Swap_Chain_Helper`, move texture loading and a `Bitmap` helper into `ovk`. `main.odin` drops to about 435 lines. |
 
 ## References
 

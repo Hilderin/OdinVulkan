@@ -296,6 +296,7 @@ update_descriptor_set :: proc(descriptor_set: ^Descriptor_Set, descriptor_writes
 
 It currently supports `UNIFORM_BUFFER` and `COMBINED_IMAGE_SAMPLER`. Adding a new descriptor type is just another branch in the iteration. The call site in `init_app` becomes:
 
+{% raw %}
 ```c
 for i in 0 ..< NB_FRAMES_IN_FLIGHT {
     ovk.update_descriptor_set(
@@ -304,6 +305,7 @@ for i in 0 ..< NB_FRAMES_IN_FLIGHT {
     ) or_return
 }
 ```
+{% endraw %}
 
 
 ## The application code is now minimal

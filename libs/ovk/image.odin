@@ -1,7 +1,8 @@
 package ovk
 
-import vk "vendor:vulkan"
+import "core:math"
 
+import vk "vendor:vulkan"
 
 Image :: struct {
 	device:           ^Device,
@@ -10,6 +11,7 @@ Image :: struct {
 	vk_image_view:    vk.ImageView,
 	width:            u32,
 	height:           u32,
+	mip_levels:       u32,
 }
 
 
@@ -49,6 +51,7 @@ create_image :: proc(args: Create_Image_Args) -> (image: Image, err: Error) {
 	image.device = args.device
 	image.width = args.width
 	image.height = args.height
+	image.mip_levels = args.mip_levels
 
 
 	// Memory allocation
@@ -91,6 +94,71 @@ destroy_image :: proc(image: ^Image) {
 	if image.vk_image != 0 {
 		vk.DestroyImage(image.device.vk_device, image.vk_image, nil)
 	}
+}
+
+// Create a texture image from an image on the disk.
+create_image_from_file :: proc(path: string, mipmaps: bool, command_pool: ^Command_Pool, queue: ^Queue) -> (image: Image, err: Error) {
+
+	src_bitmap := load_bitmap_from_file(path, {.alpha_add_if_missing}) or_return
+	defer destroy_bitmap(&src_bitmap)
+
+	assert(src_bitmap.channels == 4, "Image should have 4 channels (rgba).") or_return
+
+	size := u64(src_bitmap.width) * u64(src_bitmap.height) * u64(src_bitmap.channels)
+	mip_levels := mipmaps ? u32(math.floor(math.log2(f32(max(src_bitmap.width, src_bitmap.height))))) + 1 : 1
+
+	// Staging buffer
+	staging_buffer := create_buffer({device = command_pool.device, size = size, usage = {.TRANSFER_SRC}, mem_properties = {.HOST_VISIBLE, .HOST_COHERENT}}) or_return
+	defer destroy_buffer(&staging_buffer)
+
+	// Copy image to staging buffer
+	mem_copy_to_buffer(src_bitmap.pixels, &staging_buffer) or_return
+
+
+	// Destination image
+	image = create_image(
+		{
+			device = command_pool.device,
+			width = src_bitmap.width,
+			height = src_bitmap.height,
+			mip_levels = mip_levels,
+			samples = {._1},
+			format = .R8G8B8A8_SRGB,
+			usage = {.TRANSFER_SRC, .TRANSFER_DST, .SAMPLED},
+			mem_properties = {.DEVICE_LOCAL},
+			aspect_flags = {.COLOR},
+		},
+	) or_return
+
+	// We can use the same command buffer to do: transition -> transfer -> transition, the barriers are used to synchronize the commands.
+	command_buffer := create_one_time_command_buffer(command_pool) or_return
+
+	// Transition the image from undefined to transfer destination
+	cmd_transition_image_layout(
+		&command_buffer,
+		&image,
+		.UNDEFINED, //old_layout
+		.TRANSFER_DST_OPTIMAL, //new_layout
+		{}, // src_access_mask
+		{.TRANSFER_WRITE}, // dst_access_mask
+		{.TOP_OF_PIPE}, // src_stage
+		{.TRANSFER}, // dst_stage
+		{.COLOR}, //image_aspect_flags
+		mip_levels, //mip_levels
+	)
+
+	// Copy the buffer to the image
+	cmd_copy_buffer_to_image(&command_buffer, &staging_buffer, &image)
+
+	// Generating mipmaps...
+	if mipmaps {
+		cmd_generate_mipmaps(&command_buffer, &image, .R8G8B8A8_SRGB, src_bitmap.width, src_bitmap.height, mip_levels) or_return
+	}
+
+	// Submit and wait
+	end_one_time_command_buffer(&command_buffer, queue) or_return
+
+	return
 }
 
 @(private = "file")

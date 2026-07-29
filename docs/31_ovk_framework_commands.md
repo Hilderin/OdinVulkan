@@ -409,6 +409,4 @@ When the swap chain is out of date, `run_app` calls `destroy_swap_chain(app)` th
 
 ## What's next
 
-This step completes the refactoring that started in step 29. Every Vulkan object and every reusable operation lives in `libs/ovk/`. `utils.odin` no longer exists - its functions now live where they belong. `main.odin` is down to about 635 lines, most of which is application-specific: the vertex definition, the uniform buffer struct, the `record_command_buffer` logic, the texture loading function, and the event loop.
-
-What comes next is up to you. With the boilerplate out of the way, the next steps can focus on new features - compute shaders, push constants, GPU-driven rendering, or whatever Vulkan feature you want to explore.
+Every Vulkan object and every reusable operation now lives in ovk, but `main.odin` is still carrying the swap chain plumbing - the acquire/submit/present trio, the semaphores and fences, the color and depth images, and the recreation path - plus the texture loading code. The next step bundles all of that into a `Swap_Chain_Helper` that owns the whole cycle and recreates the swap chain on its own, and moves texture loading into ovk too. That's [32 - ovk Framework Helpers](./32_ovk_framework_helpers.md).

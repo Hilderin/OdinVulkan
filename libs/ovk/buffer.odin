@@ -110,6 +110,12 @@ mem_copy_to_buffer :: proc(data: []$T, dest_buffer: ^Buffer) -> (err: Error) {
 	return
 }
 
+// Copy data to a mapped buffer
+mem_copy_to_mapped_buffer :: proc(data: $T, dest_mapped_buffer: ^Mapped_Buffer) {
+	mapped_data := cast(^T)dest_mapped_buffer.ptr
+	mapped_data^ = data
+}
+
 // Transfer data to a buffer via a staging buffer.
 transfer_to_buffer :: proc(command_pool: ^Command_Pool, queue: ^Queue, data: []$T, dest_buffer: ^Buffer) -> (err: Error) {
 

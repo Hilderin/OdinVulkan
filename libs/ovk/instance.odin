@@ -10,6 +10,9 @@ import vk "vendor:vulkan"
 // Required validation layers.
 validation_layers :: []cstring{"VK_LAYER_KHRONOS_validation"}
 
+// Required extensions
+required_extensions :: []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
+
 // Struct containing the Vulkan instance and init information.
 Instance :: struct {
 	vk_instance:     vk.Instance,

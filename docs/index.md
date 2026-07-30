@@ -63,6 +63,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 - [Prerequisites](./prerequisites.md) - installing Odin, Vulkan SDK, GLFW, VSCode setup.
 - [VSCode Project Setup](./vscode_setup.md) - how the `.vscode/` config files work (tasks, debug, settings).
 - [Setup Documentation Site](./setup_documentation_site.md) - build and preview this Jekyll site locally.
+- [RenderDoc](./renderdoc.md) - GPU debugging with RenderDoc.
 
 ## External References
 

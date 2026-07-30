@@ -2,6 +2,7 @@ package ovk
 
 import "base:runtime"
 import "core:fmt"
+import "core:os"
 import "core:reflect"
 
 import vk "vendor:vulkan"
@@ -26,6 +27,7 @@ Error :: union {
 	General_Error,
 	Vulkan_Error,
 	Assert_Error,
+	os.Error,
 }
 
 

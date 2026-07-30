@@ -22,6 +22,7 @@ Create_Graphics_Pipeline_Args :: struct {
 	vertex_attributes:        []vk.VertexInputAttributeDescription,
 	depth_format:             vk.Format,
 	samples:                  vk.SampleCountFlags,
+	pipeline_cache:           ^Pipeline_Cache,
 }
 
 // Create a graphics pipeline
@@ -197,7 +198,10 @@ create_graphics_pipeline :: proc(args: Create_Graphics_Pipeline_Args) -> (pipeli
 		pNext               = &pipeline_rendering_create_info,
 	}
 
-	check(vk.CreateGraphicsPipelines(args.device.vk_device, 0, 1, &pipeline_create_info, nil, &pipeline.vk_pipeline), "Failed to create graphics pipeline!") or_return
+	// Pipeline cache if present
+	pipeline_cache := args.pipeline_cache != nil ? args.pipeline_cache.vk_pipeline_cache : 0
+
+	check(vk.CreateGraphicsPipelines(args.device.vk_device, pipeline_cache, 1, &pipeline_create_info, nil, &pipeline.vk_pipeline), "Failed to create graphics pipeline!") or_return
 
 	// Complete the struct
 	pipeline.device = args.device

@@ -55,6 +55,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 30 | [ovk Framework Objects](./30_ovk_framework_objects.md) | Second refactoring step: wrap swap chain, buffers, images, shader modules, pipelines, descriptor sets into the `ovk` library. |
 | 31 | [ovk Framework Commands](./31_ovk_framework_commands.md) | Third refactoring step: move command pools, command buffers, recording helpers, fences, semaphores, queues, buffer transfers, sampler and model loading into `ovk`; split up `utils.odin`. |
 | 32 | [ovk Framework Helpers](./32_ovk_framework_helpers.md) | Fourth refactoring step: bundle the swap chain, color/depth images, semaphores, fences and the acquire/submit/present cycle into a `Swap_Chain_Helper`, move texture loading and a `Bitmap` helper into `ovk`. `main.odin` drops to about 435 lines. |
+| 33 | [Pipeline Cache](./33_pipeline_cache.md) | Add a pipeline cache to the graphics pipeline creation, persist it to disk and load it back on the next run to speed up pipeline compilation. |
 
 ## References
 

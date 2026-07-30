@@ -13,6 +13,7 @@ You will need:
 - GLFW
 - Slang VSCode Extension (optional but recommended for editing shaders)
 - clang-format (optional but recommended for formatting slang shaders)
+- RenderDoc (optional but recommended for GPU debugging - see [RenderDoc page](./renderdoc.md))
 
 Plus, depending on your OS, one of the following VSCode debugger extensions:
 - **Windows**: C/C++ VSCode Extension (for `cppvsdbg` - see below)

@@ -1,7 +1,5 @@
 package ovk
 
-import "core:fmt"
-
 import vk "vendor:vulkan"
 
 // Default number of frames in flight

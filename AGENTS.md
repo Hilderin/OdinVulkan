@@ -57,6 +57,14 @@ The docs are published with Jekyll using the Just the Docs theme. Two rules to k
    ```
    ````
 
+3. **Wrap `{{` in `{% raw %}` / `{% endraw %}` tags.** Jekyll's Liquid template engine sees `{{` and `}}` as variable delimiters. Vulkan struct literals like `{{.COLOR}}` will trigger a build error like `Liquid Exception: Liquid syntax error (line 65): Variable '{{.COLOR}' was not properly terminated with regexp: /\}\}/`. Any doc containing double braces (Odin/Vulkan literals such as `{...{...}}`, `{{0, 0, 0}}`, etc.) must wrap that content in `{% raw %}` and `{% endraw %}`:
+   ````
+   {% raw %}
+   subresourceRange = {{.COLOR}, 0, 1, 0, 1},
+   {% endraw %}
+   ````
+   This applies to both inline code and code blocks. When in doubt, wrap the whole code block.
+
 Non-Odin blocks (shell commands, expected output) stay as plain ` ``` ` fences without a language, just like the existing docs.
 
 

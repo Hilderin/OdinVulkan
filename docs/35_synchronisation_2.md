@@ -11,6 +11,10 @@ The codebase was already using `vkCmdPipelineBarrier2` for image layout transiti
 
 The full source for this step lives in [src/35_synchronisation_2/main.odin](https://github.com/Hilderin/OdinVulkan/blob/main/src/35_synchronisation_2/main.odin) and the changed library files are [libs/ovk/commands.odin](https://github.com/Hilderin/OdinVulkan/blob/main/libs/ovk/commands.odin) and [libs/ovk/command_buffer.odin](https://github.com/Hilderin/OdinVulkan/blob/main/libs/ovk/command_buffer.odin).
 
+References:
+- [Synchronization introduction](https://docs.vulkan.org/tutorial/latest/Synchronization/introduction.html) - the official tutorial's synchronization chapter, with the concepts in more depth.
+- [Vulkan SDK offers developers a smooth transition path to synchronization 2](https://www.khronos.org/blog/vulkan-sdk-offers-developers-a-smooth-transition-path-to-synchronization2) - Khronos blog post explaining why the new API exists.
+
 ---
 
 ## Objectives
@@ -33,7 +37,7 @@ The barrier and submit functions from Vulkan 1.0 do the job, but two design deci
 
 ### What synchronization 2 changes
 
-`VK_KHR_synchronization2`, core since Vulkan 1.3, reworks both calls:
+`VK_KHR_synchronization2`, core since Vulkan 1.3, reworks both calls (see the [References](#references) above for background). The short version:
 
 - `vkCmdPipelineBarrier2` takes a `VkDependencyInfo`, and every `VkImageMemoryBarrier2` / `VkBufferMemoryBarrier2` / `VkMemoryBarrier2` inside it carries its own stage and access masks. The dependency is complete in one struct: "these stages, with these accesses, must wait for those stages, with those accesses." No common denominator.
 
@@ -61,6 +65,7 @@ vk.CmdPipelineBarrier(command_buffer, {.TRANSFER}, {.TRANSFER}, {}, 0, nil, 0, n
 
 After, the barrier carries everything, and one `DependencyInfo` is reused for all the transitions:
 
+{% raw %}
 ```c
 barrier := vk.ImageMemoryBarrier2 {
     sType               = .IMAGE_MEMORY_BARRIER_2,
@@ -99,6 +104,7 @@ for i in 1 ..< mip_levels {
     vk.CmdPipelineBarrier2(command_buffer.vk_command_buffer, &dependency_info)
 }
 ```
+{% endraw %}
 
 The stage masks that used to sit on the `CmdPipelineBarrier` call moved into the barrier itself. The `dependency_info` is built once and reused, since only the barrier's fields change between calls.
 
@@ -156,7 +162,7 @@ vk.QueueSubmit2(args.queue.vk_queue, 1, &submit_info, fence)
 
 Signal semaphores now carry a stage too. `{.ALL_COMMANDS}` is the conservative choice: "signal once everything above has finished", which is exactly what the old call meant implicitly.
 
-The only signature change is `wait_dest_stages`, which went from `[]vk.PipelineStageFlags` to `[]vk.PipelineStageFlags2`. The callers didn't have to change: `swap_chain_helper_submit_and_queue_present` passes `{{.COLOR_ATTACHMENT_OUTPUT}}`, and that bit has the same value in both enums, so the literal still compiles as-is.
+The only signature change is `wait_dest_stages`, which went from `[]vk.PipelineStageFlags` to `[]vk.PipelineStageFlags2`. The callers didn't have to change: `swap_chain_helper_submit_and_queue_present` passes {% raw %}`{{.COLOR_ATTACHMENT_OUTPUT}}`{% endraw %}, and that bit has the same value in both enums, so the literal still compiles as-is.
 
 ---
 

@@ -160,7 +160,7 @@ cmd_copy_buffer_to_image :: proc(command_buffer: ^Command_Buffer, src_buffer: ^B
 	vk.CmdCopyBufferToImage(command_buffer.vk_command_buffer, src_buffer.vk_buffer, dest_image.vk_image, .TRANSFER_DST_OPTIMAL, 1, &copy_region)
 }
 
-// Record CmdPipelineBarrier commands to generate mipmaps
+// Record CmdPipelineBarrier2 commands to generate mipmaps
 cmd_generate_mipmaps :: proc(command_buffer: ^Command_Buffer, image: ^Image, format: vk.Format, width: u32, height: u32, mip_levels: u32) -> (err: Error) {
 
 	// Check if image format supports linear blitting
@@ -172,12 +172,18 @@ cmd_generate_mipmaps :: proc(command_buffer: ^Command_Buffer, image: ^Image, for
 		"Texture image format does not support linear blitting!",
 	) or_return
 
-	barrier := vk.ImageMemoryBarrier {
-		sType               = .IMAGE_MEMORY_BARRIER,
+	barrier := vk.ImageMemoryBarrier2 {
+		sType               = .IMAGE_MEMORY_BARRIER_2,
 		image               = image.vk_image,
-		srcQueueFamilyIndex = 0, //VK_QUEUE_FAMILY_IGNORED
-		dstQueueFamilyIndex = 0, //VK_QUEUE_FAMILY_IGNORED
+		srcQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
+		dstQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
 		subresourceRange    = {{.COLOR}, 0, 1, 0, 1},
+	}
+
+	dependency_info := vk.DependencyInfo {
+		sType                   = .DEPENDENCY_INFO,
+		imageMemoryBarrierCount = 1,
+		pImageMemoryBarriers    = &barrier,
 	}
 
 	mip_width := width
@@ -187,10 +193,12 @@ cmd_generate_mipmaps :: proc(command_buffer: ^Command_Buffer, image: ^Image, for
 		barrier.subresourceRange.baseMipLevel = i - 1
 		barrier.oldLayout = .TRANSFER_DST_OPTIMAL
 		barrier.newLayout = .TRANSFER_SRC_OPTIMAL
+		barrier.srcStageMask = {.TRANSFER}
+		barrier.dstStageMask = {.TRANSFER}
 		barrier.srcAccessMask = {.TRANSFER_WRITE}
 		barrier.dstAccessMask = {.TRANSFER_READ}
 
-		vk.CmdPipelineBarrier(command_buffer.vk_command_buffer, {.TRANSFER}, {.TRANSFER}, {}, 0, nil, 0, nil, 1, &barrier)
+		vk.CmdPipelineBarrier2(command_buffer.vk_command_buffer, &dependency_info)
 
 		blit := vk.ImageBlit {
 			srcOffsets     = {{0, 0, 0}, {i32(mip_width), i32(mip_height), 1}},
@@ -204,10 +212,12 @@ cmd_generate_mipmaps :: proc(command_buffer: ^Command_Buffer, image: ^Image, for
 
 		barrier.oldLayout = .TRANSFER_SRC_OPTIMAL
 		barrier.newLayout = .SHADER_READ_ONLY_OPTIMAL
+		barrier.srcStageMask = {.TRANSFER}
+		barrier.dstStageMask = {.FRAGMENT_SHADER}
 		barrier.srcAccessMask = {.TRANSFER_READ}
 		barrier.dstAccessMask = {.SHADER_READ}
 
-		vk.CmdPipelineBarrier(command_buffer.vk_command_buffer, {.TRANSFER}, {.FRAGMENT_SHADER}, {}, 0, nil, 0, nil, 1, &barrier)
+		vk.CmdPipelineBarrier2(command_buffer.vk_command_buffer, &dependency_info)
 
 		if mip_width > 1 {
 			mip_width /= 2
@@ -220,10 +230,12 @@ cmd_generate_mipmaps :: proc(command_buffer: ^Command_Buffer, image: ^Image, for
 	barrier.subresourceRange.baseMipLevel = mip_levels - 1
 	barrier.oldLayout = .TRANSFER_DST_OPTIMAL
 	barrier.newLayout = .SHADER_READ_ONLY_OPTIMAL
+	barrier.srcStageMask = {.TRANSFER}
+	barrier.dstStageMask = {.FRAGMENT_SHADER}
 	barrier.srcAccessMask = {.TRANSFER_WRITE}
 	barrier.dstAccessMask = {.SHADER_READ}
 
-	vk.CmdPipelineBarrier(command_buffer.vk_command_buffer, {.TRANSFER}, {.FRAGMENT_SHADER}, {}, 0, nil, 0, nil, 1, &barrier)
+	vk.CmdPipelineBarrier2(command_buffer.vk_command_buffer, &dependency_info)
 
 	return
 }

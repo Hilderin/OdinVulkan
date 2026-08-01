@@ -17,7 +17,7 @@ Submit_Command_Buffer_Args :: struct {
 	// fence can be nil when no fence synchronization is needed (e.g. one-time commands)
 	fence:             ^Fence,
 	wait_semaphores:   []^Semaphore,
-	wait_dest_stages:  []vk.PipelineStageFlags,
+	wait_dest_stages:  []vk.PipelineStageFlags2,
 	signal_semaphores: []^Semaphore,
 }
 
@@ -98,32 +98,43 @@ end_command_buffer :: proc(command_buffer: ^Command_Buffer) -> (err: Error) {
 submit_command_buffer :: proc(args: Submit_Command_Buffer_Args) -> (err: Error) {
 	assert(len(args.wait_semaphores) == len(args.wait_dest_stages), "Wait dest stages must be of same length as wait_semaphores") or_return
 
-	vk_wait_semaphores := make([]vk.Semaphore, len(args.wait_semaphores))
-	defer delete(vk_wait_semaphores)
+	wait_semaphore_infos := make([]vk.SemaphoreSubmitInfo, len(args.wait_semaphores))
+	defer delete(wait_semaphore_infos)
 
-	vk_signal_semaphores := make([]vk.Semaphore, len(args.signal_semaphores))
-	defer delete(vk_signal_semaphores)
+	signal_semaphore_infos := make([]vk.SemaphoreSubmitInfo, len(args.signal_semaphores))
+	defer delete(signal_semaphore_infos)
 
-	for &wait_semaphore, i in args.wait_semaphores {
-		vk_wait_semaphores[i] = wait_semaphore.vk_semaphore
+	for wait_semaphore, i in args.wait_semaphores {
+		wait_semaphore_infos[i] = vk.SemaphoreSubmitInfo {
+			sType     = .SEMAPHORE_SUBMIT_INFO,
+			semaphore = wait_semaphore.vk_semaphore,
+			stageMask = args.wait_dest_stages[i],
+		}
 	}
-	for &signal_semaphore, i in args.signal_semaphores {
-		vk_signal_semaphores[i] = signal_semaphore.vk_semaphore
-	}
-
-
-	submit_info := vk.SubmitInfo {
-		sType                = .SUBMIT_INFO,
-		waitSemaphoreCount   = u32(len(vk_wait_semaphores)),
-		pWaitSemaphores      = raw_data(vk_wait_semaphores),
-		pWaitDstStageMask    = raw_data(args.wait_dest_stages),
-		commandBufferCount   = 1,
-		pCommandBuffers      = &args.command_buffer.vk_command_buffer,
-		signalSemaphoreCount = u32(len(vk_signal_semaphores)),
-		pSignalSemaphores    = raw_data(vk_signal_semaphores),
+	for signal_semaphore, i in args.signal_semaphores {
+		signal_semaphore_infos[i] = vk.SemaphoreSubmitInfo {
+			sType     = .SEMAPHORE_SUBMIT_INFO,
+			semaphore = signal_semaphore.vk_semaphore,
+			stageMask = {.ALL_COMMANDS},
+		}
 	}
 
-	check(vk.QueueSubmit(args.queue.vk_queue, 1, &submit_info, args.fence != nil ? args.fence.vk_fence : 0), "Failed to submit command buffer!") or_return
+	command_buffer_info := vk.CommandBufferSubmitInfo {
+		sType         = .COMMAND_BUFFER_SUBMIT_INFO,
+		commandBuffer = args.command_buffer.vk_command_buffer,
+	}
+
+	submit_info := vk.SubmitInfo2 {
+		sType                    = .SUBMIT_INFO_2,
+		waitSemaphoreInfoCount   = u32(len(wait_semaphore_infos)),
+		pWaitSemaphoreInfos      = raw_data(wait_semaphore_infos),
+		commandBufferInfoCount   = 1,
+		pCommandBufferInfos      = &command_buffer_info,
+		signalSemaphoreInfoCount = u32(len(signal_semaphore_infos)),
+		pSignalSemaphoreInfos    = raw_data(signal_semaphore_infos),
+	}
+
+	check(vk.QueueSubmit2(args.queue.vk_queue, 1, &submit_info, args.fence != nil ? args.fence.vk_fence : 0), "Failed to submit command buffer!") or_return
 
 	return
 }

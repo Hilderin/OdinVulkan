@@ -56,6 +56,8 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 31 | [ovk Framework Commands](./31_ovk_framework_commands.md) | Third refactoring step: move command pools, command buffers, recording helpers, fences, semaphores, queues, buffer transfers, sampler and model loading into `ovk`; split up `utils.odin`. |
 | 32 | [ovk Framework Helpers](./32_ovk_framework_helpers.md) | Fourth refactoring step: bundle the swap chain, color/depth images, semaphores, fences and the acquire/submit/present cycle into a `Swap_Chain_Helper`, move texture loading and a `Bitmap` helper into `ovk`. `main.odin` drops to about 435 lines. |
 | 33 | [Pipeline Cache](./33_pipeline_cache.md) | Add a pipeline cache to the graphics pipeline creation, persist it to disk and load it back on the next run to speed up pipeline compilation. |
+| 34 | [Debug Names](./34_debug_names.md) | Name every Vulkan object and label command buffer regions so RenderDoc captures and validation messages show readable names instead of raw handles. |
+| 35 | [Synchronisation 2](./35_synchronisation_2.md) | Migrate the last legacy synchronization calls (`vkCmdPipelineBarrier`, `vkQueueSubmit`) to the modern `*2` versions inside the `ovk` library. |
 
 ## References
 

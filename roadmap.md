@@ -7,7 +7,7 @@ The idea is simple: I build solid foundations first, then I get to the pretty st
 ## Setup / Helpers
 - [x] Pipeline cache persistence - save the cache to disk, load it on startup. A cheap win that shaves off seconds every launch.
 - [x] Debug object names + command labels - name buffers, images and pipelines. Otherwise RenderDoc captures are a wall of meaningless handles.
-- [ ] Synchronization 2 - `vkCmdPipelineBarrier2` + `vkQueueSubmit2`. I learn the modern version right away, skipping the legacy barriers entirely.
+- [x] Synchronization 2 - `vkCmdPipelineBarrier2` + `vkQueueSubmit2`. I learn the modern version right away, skipping the legacy barriers entirely.
 - [ ] Timeline semaphores - one primitive for all my synchronization, instead of a growing pile of fences and binary semaphores.
 - [ ] ImGui integration
 - [ ] FPS counter

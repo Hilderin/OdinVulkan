@@ -68,6 +68,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 - [VSCode Project Setup](./vscode_setup.md) - how the `.vscode/` config files work (tasks, debug, settings).
 - [Setup Documentation Site](./setup_documentation_site.md) - build and preview this Jekyll site locally.
 - [RenderDoc](./renderdoc.md) - GPU debugging with RenderDoc.
+- [Rebuilding the ImGui library](./imgui_build.md) - rebuild the imgui C library for Windows and Linux when the version changes.
 
 ## External References
 

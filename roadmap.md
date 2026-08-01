@@ -9,7 +9,7 @@ The idea is simple: I build solid foundations first, then I get to the pretty st
 - [x] Debug object names + command labels - name buffers, images and pipelines. Otherwise RenderDoc captures are a wall of meaningless handles.
 - [x] Synchronization 2 - `vkCmdPipelineBarrier2` + `vkQueueSubmit2`. I learn the modern version right away, skipping the legacy barriers entirely.
 - [x] Timeline semaphores - one primitive for all my synchronization, instead of a growing pile of fences and binary semaphores.
-- [ ] ImGui integration
+- [x] ImGui integration
 - [ ] FPS counter
 - [ ] ImPlot integration
 - [ ] FPS counter graph

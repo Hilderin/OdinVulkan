@@ -5,6 +5,7 @@ import vk "vendor:vulkan"
 
 // Information on the physical device.
 Physical_Device :: struct {
+	instance:              ^Instance,
 	vk_physical_device:    vk.PhysicalDevice,
 	graphics_queue_family: u32,
 	compute_queue_family:  u32,
@@ -43,6 +44,7 @@ get_physical_device :: proc(args: Get_Physical_Device_Args) -> (physical_device:
 
 	// Create the physical device.
 	physical_device = {
+		instance           = args.instance,
 		vk_physical_device = best_device,
 	}
 

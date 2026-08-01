@@ -9,3 +9,6 @@ docs/vendor/bundle
 
 # Draw.io
 *.bkp
+
+# ImGui config
+*.ini

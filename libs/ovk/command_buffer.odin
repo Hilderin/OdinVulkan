@@ -18,7 +18,13 @@ Submit_Command_Buffer_Args :: struct {
 	fence:             ^Fence,
 	wait_semaphores:   []^Semaphore,
 	wait_dest_stages:  []vk.PipelineStageFlags2,
+	// Values to wait on when using timeline semaphores, 0 for binary semaphores.
+	// Must be of same length as wait_semaphores when provided.
+	wait_values:       []u64,
 	signal_semaphores: []^Semaphore,
+	// Values to signal when using timeline semaphores, 0 for binary semaphores.
+	// Must be of same length as signal_semaphores when provided.
+	signal_values:     []u64,
 }
 
 // Create one command buffer
@@ -105,16 +111,26 @@ submit_command_buffer :: proc(args: Submit_Command_Buffer_Args) -> (err: Error) 
 	defer delete(signal_semaphore_infos)
 
 	for wait_semaphore, i in args.wait_semaphores {
+		wait_value: u64 = 0
+		if i < len(args.wait_values) {
+			wait_value = args.wait_values[i]
+		}
 		wait_semaphore_infos[i] = vk.SemaphoreSubmitInfo {
 			sType     = .SEMAPHORE_SUBMIT_INFO,
 			semaphore = wait_semaphore.vk_semaphore,
+			value     = wait_value,
 			stageMask = args.wait_dest_stages[i],
 		}
 	}
 	for signal_semaphore, i in args.signal_semaphores {
+		signal_value: u64 = 0
+		if i < len(args.signal_values) {
+			signal_value = args.signal_values[i]
+		}
 		signal_semaphore_infos[i] = vk.SemaphoreSubmitInfo {
 			sType     = .SEMAPHORE_SUBMIT_INFO,
 			semaphore = signal_semaphore.vk_semaphore,
+			value     = signal_value,
 			stageMask = {.ALL_COMMANDS},
 		}
 	}

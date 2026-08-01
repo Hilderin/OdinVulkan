@@ -104,6 +104,7 @@ get_device_features :: proc(
 	device: vk.PhysicalDevice,
 ) -> (
 	vk.PhysicalDeviceVulkan11Features,
+	vk.PhysicalDeviceVulkan12Features,
 	vk.PhysicalDeviceVulkan13Features,
 	vk.PhysicalDeviceExtendedDynamicStateFeaturesEXT,
 	vk.PhysicalDeviceFeatures,
@@ -116,9 +117,14 @@ get_device_features :: proc(
 	}
 	vulkan13_features.pNext = &extended_dynamic_state_features
 
+	vulkan12_features := vk.PhysicalDeviceVulkan12Features {
+		sType = .PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+		pNext = &vulkan13_features,
+	}
+
 	vulkan11_features := vk.PhysicalDeviceVulkan11Features {
 		sType = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-		pNext = &vulkan13_features,
+		pNext = &vulkan12_features,
 	}
 
 	features2 := vk.PhysicalDeviceFeatures2 {
@@ -127,7 +133,7 @@ get_device_features :: proc(
 	}
 
 	vk.GetPhysicalDeviceFeatures2(device, &features2)
-	return vulkan11_features, vulkan13_features, extended_dynamic_state_features, features2.features
+	return vulkan11_features, vulkan12_features, vulkan13_features, extended_dynamic_state_features, features2.features
 }
 
 @(private = "file")
@@ -165,9 +171,12 @@ score_device :: proc(device: vk.PhysicalDevice, surface: vk.SurfaceKHR, required
 		}
 	}
 
-	vulkan11_f, vulkan13_f, ext_dynamic_f, base_f := get_device_features(device)
+	vulkan11_f, vulkan12_f, vulkan13_f, ext_dynamic_f, base_f := get_device_features(device)
 
 	if !vulkan11_f.shaderDrawParameters {
+		return -1
+	}
+	if !vulkan12_f.timelineSemaphore {
 		return -1
 	}
 	if !vulkan13_f.dynamicRendering {

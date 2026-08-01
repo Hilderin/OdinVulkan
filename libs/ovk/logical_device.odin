@@ -41,10 +41,18 @@ create_logical_device :: proc(args: Create_Logical_Device_Args) -> (device: Devi
 		pNext            = &device_feature_extended_dynamic_state,
 	}
 
+	// Timeline semaphores allow a semaphore to carry a 64 bit counter instead of a boolean state,
+	// which lets us wait on a specific value from the host and from other queues.
+	device_feature_vulkan12 := vk.PhysicalDeviceVulkan12Features {
+		sType              = .PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+		timelineSemaphore  = true,
+		pNext              = &device_feature_vulkan13,
+	}
+
 	device_feature_vulkan11 := vk.PhysicalDeviceVulkan11Features {
 		sType                = .PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 		shaderDrawParameters = true,
-		pNext                = &device_feature_vulkan13,
+		pNext                = &device_feature_vulkan12,
 	}
 
 	device_feature_2 := vk.PhysicalDeviceFeatures2 {

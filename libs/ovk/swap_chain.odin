@@ -90,11 +90,14 @@ destroy_swap_chain :: proc(swap_chain: ^Swap_Chain) {
 }
 
 // Acquire the next image for the swap chain and returns it's index.
+// When draw_fence is not nil, wait for the frame fence and reset it after a successful acquire.
+// Pass nil when the frame in flight synchronization is handled by the caller (e.g. a timeline semaphore).
 acquire_next_image :: proc(swap_chain: ^Swap_Chain, draw_fence: ^Fence, acquire_semaphore: ^Semaphore) -> (swapchain_image_index: u32, needs_recreation: bool, err: Error) {
 
 	// Wait until the last frame has finished rendering.
-	wait_for_fence(draw_fence)
-
+	if draw_fence != nil {
+		wait_for_fence(draw_fence)
+	}
 
 	// Acquire next image.
 	result := vk.AcquireNextImageKHR(swap_chain.device.vk_device, swap_chain.vk_swap_chain, max(u64), acquire_semaphore.vk_semaphore, 0, &swapchain_image_index)
@@ -112,7 +115,9 @@ acquire_next_image :: proc(swap_chain: ^Swap_Chain, draw_fence: ^Fence, acquire_
 	}
 
 	// We need to manually reset the fence to the unsignaled state because a fence does not automatically reset.
-	reset_fence(draw_fence)
+	if draw_fence != nil {
+		reset_fence(draw_fence)
+	}
 
 	return
 

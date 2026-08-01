@@ -58,6 +58,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 33 | [Pipeline Cache](./33_pipeline_cache.md) | Add a pipeline cache to the graphics pipeline creation, persist it to disk and load it back on the next run to speed up pipeline compilation. |
 | 34 | [Debug Names](./34_debug_names.md) | Name every Vulkan object and label command buffer regions so RenderDoc captures and validation messages show readable names instead of raw handles. |
 | 35 | [Synchronisation 2](./35_synchronisation_2.md) | Migrate the last legacy synchronization calls (`vkCmdPipelineBarrier`, `vkQueueSubmit`) to the modern `*2` versions inside the `ovk` library. |
+| 36 | [Timeline Semaphores](./36_timeline_semaphores.md) | Replace the frame-in-flight fences with a single timeline semaphore carrying a monotonic counter, waited on from the host; swapchain acquire/present stays binary. |
 
 ## References
 

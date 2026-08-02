@@ -65,6 +65,8 @@ The docs are published with Jekyll using the Just the Docs theme. Two rules to k
    ````
    This applies to both inline code and code blocks. When in doubt, wrap the whole code block.
 
+4. **Keep `docs/index.md` in sync.** Every time a doc page is added (a new step, a reference page), add it to the `docs/index.md` steps table or references list. The index is the reader's entry point - a page that is not linked from it is effectively lost.
+
 Non-Odin blocks (shell commands, expected output) stay as plain ` ``` ` fences without a language, just like the existing docs.
 
 

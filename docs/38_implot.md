@@ -42,6 +42,12 @@ Like `libs/imgui`, `implot.odin` is not a pure Odin implementation. It wraps the
 
 The binding is written by hand, not generated. ImPlot's public API is small enough that a curated binding beats an auto-generated one: the C API exposes every template variant of `PlotLine` for every integer type (S8, U8, S16, ...), and most of those are noise. The binding keeps the double, float and getter variants, which cover the realistic cases, and skips the internal API (ticks, axes internals, the `ImPool`/`ImVector` machinery). It follows the naming of `imgui.odin`: the `ImPlot_` prefix is stripped from functions, `ImPlot` from types, and flag types use the `Flags :: bit_set[Flag; i32]` pair convention (`libs/implot/implot.odin`).
 
+### The Spec trap: a zeroed Spec is not the default
+
+Every `PlotLine` variant takes an `ImPlotSpec_c` by value. In C++, `ImPlotSpec` has a constructor that fills the fields with `IMPLOT_AUTO = -1`, which tells ImPlot to use the style defaults (line color, weight, marker, ...). The binding mirrors the struct layout faithfully, but a zeroed `Spec{}` in Odin is all zeros, not all `-1`: `LineColor` becomes `(0, 0, 0, 0)` (fully transparent) and `LineWeight` becomes `0`. The result is a line that ImPlot draws with zero alpha and zero thickness - in other words, invisible. The plot frame and axes show up fine, but the data line never appears.
+
+The fix lives in the binding, not the application code. `Spec_ImPlotSpec` (`libs/implot/implot.odin`) calls the C constructor and returns a `^Spec` with the proper defaults. The binding keeps a single `default_spec` global, created lazily on first use, and the `PlotLine_*` wrappers pass it to the C function when the caller omits the `spec` parameter. So `implot.PlotLine_doublePtrdoublePtr(label, xs, ys, count)` just works; passing a custom `^Spec` is still supported for the cases where you want to tune line color or weight.
+
 ---
 
 ## Implementation
@@ -110,3 +116,4 @@ The console shows the usual startup messages and no new validation errors. Commo
 - A link error mentioning `implot_windows_x64.lib` or `libimplot_linux_x64.a`: the library is missing from `libs/implot`. Rebuild it with the procedure in [Rebuilding the ImPlot library](./implot_build.md).
 - The app crashes on startup with an ImPlot assert: the ImPlot context was created before the ImGui context, or destroyed after it. Create ImPlot right after `init_imgui` and destroy it right before `destroy_imgui`.
 - The plot area is blank but the window is there: the ImPlot calls happen outside an ImGui frame, or outside a `BeginPlot`/`EndPlot` pair. Every plot must start with `BeginPlot` and end with `EndPlot`, both inside the ImGui frame.
+- The plot frame and axes render but the data line is invisible: a `Spec{}` was passed instead of using the default. See "The Spec trap" above - the binding wrappers handle this automatically, but only if the `spec` parameter is omitted.

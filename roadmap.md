@@ -11,7 +11,7 @@ The idea is simple: I build solid foundations first, then I get to the pretty st
 - [x] Timeline semaphores - one primitive for all my synchronization, instead of a growing pile of fences and binary semaphores.
 - [x] ImGui integration
 - [ ] FPS counter
-- [ ] ImPlot integration
+- [X] ImPlot integration
 - [ ] FPS counter graph
 
 ## Sick of the viking room

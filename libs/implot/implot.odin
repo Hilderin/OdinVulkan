@@ -25,6 +25,19 @@ when ODIN_OS == .Linux {
 	@(require) foreign import stdcpp "system:c++"
 }
 
+// Default Spec used by the plot function wrappers when no custom Spec is
+// provided. It is created lazily on first use via ImPlotSpec_ImPlotSpec(),
+// which fills the C defaults (IMPLOT_AUTO). A zeroed Spec{} would have
+// LineColor=(0,0,0,0) and LineWeight=0, producing an invisible line.
+default_spec: ^Spec = nil
+
+get_default_spec :: proc() -> ^Spec {
+	if default_spec == nil {
+		default_spec = Spec_ImPlotSpec()
+	}
+	return default_spec
+}
+
 when ODIN_OS == .Windows {
 	when ODIN_ARCH == .amd64 {
 		@export
@@ -554,20 +567,37 @@ foreign implotlib {
 	SetNextAxesToFit :: proc() ---
 
 	// PlotLine
+	// ImPlotSpec helpers: creates a Spec with proper C defaults (IMPLOT_AUTO = -1).
+	// A zeroed Spec{} has LineColor=(0,0,0,0) and LineWeight=0, which is invisible.
+	@(link_name = "ImPlotSpec_ImPlotSpec")
+	Spec_ImPlotSpec :: proc() -> ^Spec ---
+
+	@(link_name = "ImPlotSpec_destroy")
+	Spec_Destroy :: proc(self: ^Spec) ---
+
+	@(link_name = "ImPlotSpec_SetProp_Float")
+	Spec_SetProp_Float :: proc(self: ^Spec, prop: Prop, v: f32) ---
+
+	@(link_name = "ImPlotSpec_SetProp_double")
+	Spec_SetProp_double :: proc(self: ^Spec, prop: Prop, v: f64) ---
+
+	@(link_name = "ImPlotSpec_SetProp_Vec4")
+	Spec_SetProp_Vec4 :: proc(self: ^Spec, prop: Prop, v: im.Vec4) ---
+
 	@(link_name = "ImPlot_PlotLine_FloatPtrInt")
-	PlotLine_FloatPtrInt :: proc(label_id: cstring, values: [^]f32, count: i32, xscale: f64, xstart: f64, spec: Spec) ---
+	_PlotLine_FloatPtrInt :: proc(label_id: cstring, values: [^]f32, count: i32, xscale: f64, xstart: f64, spec: ^Spec) ---
 
 	@(link_name = "ImPlot_PlotLine_doublePtrInt")
-	PlotLine_doublePtrInt :: proc(label_id: cstring, values: [^]f64, count: i32, xscale: f64, xstart: f64, spec: Spec) ---
+	_PlotLine_doublePtrInt :: proc(label_id: cstring, values: [^]f64, count: i32, xscale: f64, xstart: f64, spec: ^Spec) ---
 
 	@(link_name = "ImPlot_PlotLine_FloatPtrFloatPtr")
-	PlotLine_FloatPtrFloatPtr :: proc(label_id: cstring, xs: [^]f32, ys: [^]f32, count: i32, spec: Spec) ---
+	_PlotLine_FloatPtrFloatPtr :: proc(label_id: cstring, xs: [^]f32, ys: [^]f32, count: i32, spec: ^Spec) ---
 
 	@(link_name = "ImPlot_PlotLine_doublePtrdoublePtr")
-	PlotLine_doublePtrdoublePtr :: proc(label_id: cstring, xs: [^]f64, ys: [^]f64, count: i32, spec: Spec) ---
+	_PlotLine_doublePtrdoublePtr :: proc(label_id: cstring, xs: [^]f64, ys: [^]f64, count: i32, spec: ^Spec) ---
 
 	@(link_name = "ImPlot_PlotLineG")
-	PlotLineG :: proc(label_id: cstring, getter: Getter, data: rawptr, count: i32, spec: Spec) ---
+	_PlotLineG :: proc(label_id: cstring, getter: Getter, data: rawptr, count: i32, spec: ^Spec) ---
 
 	// PlotScatter
 	@(link_name = "ImPlot_PlotScatter_FloatPtrInt")
@@ -1161,4 +1191,33 @@ foreign implotlib {
 
 	@(link_name = "ImPlot_ImAlmostEqual")
 	ImAlmostEqual :: proc(v1: f64, v2: f64, ulp: i32) -> bool ---
+}
+
+// --- PlotLine wrappers ---------------------------------------------------
+// These wrap the foreign _PlotLine_* calls so the caller can pass {} or omit
+// the spec: a default Spec (with proper C defaults) is used automatically.
+
+PlotLine_FloatPtrInt :: proc(label_id: cstring, values: [^]f32, count: i32, xscale: f64, xstart: f64, spec: ^Spec = nil) {
+	s := spec if spec != nil else get_default_spec()
+	_PlotLine_FloatPtrInt(label_id, values, count, xscale, xstart, s)
+}
+
+PlotLine_doublePtrInt :: proc(label_id: cstring, values: [^]f64, count: i32, xscale: f64, xstart: f64, spec: ^Spec = nil) {
+	s := spec if spec != nil else get_default_spec()
+	_PlotLine_doublePtrInt(label_id, values, count, xscale, xstart, s)
+}
+
+PlotLine_FloatPtrFloatPtr :: proc(label_id: cstring, xs: [^]f32, ys: [^]f32, count: i32, spec: ^Spec = nil) {
+	s := spec if spec != nil else get_default_spec()
+	_PlotLine_FloatPtrFloatPtr(label_id, xs, ys, count, s)
+}
+
+PlotLine_doublePtrdoublePtr :: proc(label_id: cstring, xs: [^]f64, ys: [^]f64, count: i32, spec: ^Spec = nil) {
+	s := spec if spec != nil else get_default_spec()
+	_PlotLine_doublePtrdoublePtr(label_id, xs, ys, count, s)
+}
+
+PlotLineG :: proc(label_id: cstring, getter: Getter, data: rawptr, count: i32, spec: ^Spec = nil) {
+	s := spec if spec != nil else get_default_spec()
+	_PlotLineG(label_id, getter, data, count, s)
 }

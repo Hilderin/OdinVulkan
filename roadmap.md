@@ -10,9 +10,9 @@ The idea is simple: I build solid foundations first, then I get to the pretty st
 - [x] Synchronization 2 - `vkCmdPipelineBarrier2` + `vkQueueSubmit2`. I learn the modern version right away, skipping the legacy barriers entirely.
 - [x] Timeline semaphores - one primitive for all my synchronization, instead of a growing pile of fences and binary semaphores.
 - [x] ImGui integration
-- [ ] FPS counter
+- [x] FPS counter
 - [X] ImPlot integration
-- [ ] FPS counter graph
+- [x] FPS counter graph
 
 ## Sick of the viking room
 - [ ] Cubemap texture

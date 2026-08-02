@@ -12,3 +12,7 @@ docs/vendor/bundle
 
 # ImGui config
 *.ini
+
+# ImPlot rebuild working files (see libs/implot/build)
+libs/implot/build/deps
+libs/implot/build/obj

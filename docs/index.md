@@ -61,6 +61,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 36 | [Timeline Semaphores](./36_timeline_semaphores.md) | Replace the frame-in-flight fences with a single timeline semaphore carrying a monotonic counter, waited on from the host; swapchain acquire/present stays binary. |
 | 37 | [ImGui](./37_imgui.md) | Vendor the dear imgui Odin bindings and their C library, add `ovk` helpers to init and draw ImGui, and show the demo window over the viking room using dynamic rendering. |
 | 38 | [ImPlot](./38_implot.md) | Vendor the ImPlot binding and its C library, create the ImPlot context alongside ImGui, and show the ImPlot demo window. Covers the `Spec` trap where a zeroed `Spec{}` produces an invisible line. |
+| 39 | [FPS Counter](./39_fps_counter.md) | Build an FPS counter and a scrolling graph of the frame rate with ImGui and ImPlot: a ring buffer, a `PlotLineG` getter callback, ImGui's smoothed framerate, and a frame time toggle. |
 
 ## References
 

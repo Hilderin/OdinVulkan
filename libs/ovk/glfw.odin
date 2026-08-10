@@ -21,6 +21,8 @@ init_glfw :: proc() -> Error {
 // without touching any global.
 Key_Callback :: proc(window: ^Window, user_pointer: rawptr, key, scancode, action, mods: i32)
 
+Cursor_Pos_Callback :: proc(window: ^Window, user_pointer: rawptr, xpos, ypos: f64)
+
 Frame_Buffer_Size_Callback :: proc(window: ^Window, user_pointer: rawptr, width, height: i32)
 
 Window :: struct {
@@ -40,6 +42,11 @@ Window :: struct {
 	// The GLFW callback that was installed before the trampoline (if any), so
 	// the trampoline can chain to it. Stored once, at first registration.
 	prev_glfw_key_callback:   glfw.KeyProc,
+	cursor_pos_callback:      Cursor_Pos_Callback,
+	cursor_pos_user_pointer:  rawptr,
+	prev_cursor_pos_callback: Cursor_Pos_Callback,
+	prev_cursor_pos_user_pointer: rawptr,
+	prev_glfw_cursor_pos_callback: glfw.CursorPosProc,
 	framebuffer_callback:     Frame_Buffer_Size_Callback,
 	// Previous framebuffer callback and user pointer. Registered callbacks are
 	// chained instead of replaced, like the key callbacks above.
@@ -123,6 +130,11 @@ poll_events :: proc() {
 	glfw.PollEvents()
 }
 
+// Capture the mouse inside the window and hide the system cursor.
+capture_mouse :: proc(window: ^Window) {
+	glfw.SetInputMode(window.window_handle, glfw.CURSOR, glfw.CURSOR_DISABLED)
+}
+
 // Execute the glfw WaitEvents
 wait_events :: proc() {
 	glfw.WaitEvents()
@@ -150,6 +162,16 @@ set_key_callback :: proc(window: ^Window, user_pointer: rawptr, callback: Key_Ca
 		window.prev_glfw_key_callback = glfw.SetKeyCallback(window.window_handle, key_callback_thunk)
 		window.key_callback_installed = true
 	}
+}
+
+// Register a cursor position callback and preserve callbacks already installed.
+set_cursor_pos_callback :: proc(window: ^Window, user_pointer: rawptr, callback: Cursor_Pos_Callback) {
+	window.prev_cursor_pos_callback = window.cursor_pos_callback
+	window.prev_cursor_pos_user_pointer = window.cursor_pos_user_pointer
+	window.cursor_pos_user_pointer = user_pointer
+	window.cursor_pos_callback = callback
+	glfw.SetWindowUserPointer(window.window_handle, rawptr(window))
+	window.prev_glfw_cursor_pos_callback = glfw.SetCursorPosCallback(window.window_handle, cursor_pos_callback_thunk)
 }
 
 // Register a framebuffer resize callback on the window.
@@ -194,6 +216,23 @@ key_callback_thunk :: proc "c" (window_handle: glfw.WindowHandle, key, scancode,
 		}
 		if window.prev_glfw_key_callback != nil {
 			window.prev_glfw_key_callback(window_handle, key, scancode, action, mods)
+		}
+	}
+}
+
+@(private = "file")
+cursor_pos_callback_thunk :: proc "c" (window_handle: glfw.WindowHandle, xpos, ypos: f64) {
+	context = runtime.default_context()
+	window := cast(^Window)glfw.GetWindowUserPointer(window_handle)
+	if window != nil {
+		if window.prev_cursor_pos_callback != nil {
+			window.prev_cursor_pos_callback(window, window.prev_cursor_pos_user_pointer, xpos, ypos)
+		}
+		if window.cursor_pos_callback != nil {
+			window.cursor_pos_callback(window, window.cursor_pos_user_pointer, xpos, ypos)
+		}
+		if window.prev_glfw_cursor_pos_callback != nil {
+			window.prev_glfw_cursor_pos_callback(window_handle, xpos, ypos)
 		}
 	}
 }

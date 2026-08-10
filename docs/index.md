@@ -62,6 +62,7 @@ If you're new, start at [prerequisites](./prerequisites.md) to get the toolchain
 | 37 | [ImGui](./37_imgui.md) | Vendor the dear imgui Odin bindings and their C library, add `ovk` helpers to init and draw ImGui, and show the demo window over the viking room using dynamic rendering. |
 | 38 | [ImPlot](./38_implot.md) | Vendor the ImPlot binding and its C library, create the ImPlot context alongside ImGui, and show the ImPlot demo window. Covers the `Spec` trap where a zeroed `Spec{}` produces an invisible line. |
 | 39 | [FPS Counter](./39_fps_counter.md) | Build an FPS counter and a scrolling graph of the frame rate with ImGui and ImPlot: a ring buffer, a `PlotLineG` getter callback, ImGui's smoothed framerate, and a frame time toggle. |
+| 40 | [Camera User Movement](./40_camera_user_movement.md) | Add a Y-up FPS camera with delta-time movement, keyboard strafing and vertical movement, mouse freelook, camera direction vectors, and model axis conversion. |
 
 ## References
 

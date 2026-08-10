@@ -21,12 +21,6 @@ DO:
 - Explain the "why" behind each step, not just the "what".
 - Point out the common pitfalls and recurring Vulkan patterns the reader will encounter.
 - Reference files with `file_path` only, no line numbers. Line numbers drift as the code evolves, are a pain to keep in sync and add nothing for the reader.
-- One markdown file per src step, following the format defined in `docs/01_test_setup.md`:
-  1. Short intro: what this step is about and why it matters.
-  2. "What we want to prove" / goal of the step.
-  3. "The code, step by step": each code block explained, line by line when useful.
-  4. "Test it": what to expect from the startup log and the window, plus the common errors and pitfalls for this step. No build/run commands - keep it simple.
-  5. "What's next": a short teaser for the next step.
 
 DON'T:
 - No jokes, puns or wordplay just for the sake of it.

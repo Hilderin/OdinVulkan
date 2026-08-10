@@ -38,6 +38,9 @@ load_mesh :: proc(path: string) -> (mesh: Mesh, err: Error) {
 
 		texCoord := vec2{obj.attrib.texcoords[vertex_index.vt_idx * 2], 1.0 - obj.attrib.texcoords[(vertex_index.vt_idx * 2) + 1]}
 		mesh.vertices[vertex_index.v_idx].texCoord = texCoord
+
+		normal := vec3{obj.attrib.normals[vertex_index.vn_idx * 3], obj.attrib.normals[vertex_index.vn_idx * 3 + 1], obj.attrib.normals[vertex_index.vn_idx * 3 + 2]}
+		mesh.vertices[vertex_index.v_idx].normal = normal
 	}
 
 	mesh.indices = indices_list[:]

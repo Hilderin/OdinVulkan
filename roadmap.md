@@ -16,7 +16,7 @@ The idea is simple: I build solid foundations first, then I get to the pretty st
 
 ## Sick of the viking room
 - [x] Camera user movement - keyboard + mouse look. Unlocks comfortable navigation for every step after, and forces a real understanding of the view matrix.
-- [ ] Normal attribute + Blinn-Phong - add `normal` to the vertex format, drop the hardcoded `inColor`, light the viking room with a directional light uniform. The first real shading, and the prerequisite for everything reflective below.
+- [x] Normal attribute + Blinn-Phong - add `normal` to the vertex format, drop the hardcoded `inColor`, light the viking room with a directional light uniform. The first real shading, and the prerequisite for everything reflective below.
 - [ ] Cubemap texture - load a cubemap now that there is a lit model worth reflecting it onto.
 - [ ] Skybox rendering
 

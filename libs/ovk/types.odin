@@ -13,4 +13,5 @@ Vertex :: struct {
 	pos:      vec3,
 	color:    vec3,
 	texCoord: vec2,
+	normal:   vec3,
 }

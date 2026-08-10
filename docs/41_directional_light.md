@@ -78,8 +78,6 @@ The OBJ loader reads the normal index from each face and stores the correspondin
 
 The order and offsets must agree in three places: the Odin `Vertex` struct, the Vulkan vertex attribute descriptions and the `VSInput` struct in the shader. If one of them is wrong, the shader will read unrelated bytes as the normal and the lighting will look random.
 
-There is a limitation worth keeping in mind. OBJ files can use different combinations of position, UV and normal indices for different faces. This loader still stores one vertex per position index, so it is only correct when those attributes can safely be shared. A future model-loader step should build a unique vertex for each position/UV/normal combination.
-
 ## Passing the light to the GPU
 
 The existing uniform buffer contained the model, view and projection matrices. It now also contains the values required by the fragment shader:
@@ -179,6 +177,8 @@ The ambient value is a separate scene contribution. It uses `ambient_color` and 
 
 These names are the usual Phong terminology. `ambient_strength` and `specular_strength` are user-friendly multipliers. `shininess` is also called the specular exponent or Phong exponent, and it controls the size of the highlight rather than its overall brightness.
 
+For a visual explanation of the ambient, diffuse and specular components, see [LearnOpenGL - Basic Lighting](https://learnopengl.com/Lighting/Basic-Lighting).
+
 ## Editing the light with ImGui
 
 The render loop exposes the three values directly:
@@ -218,7 +218,11 @@ When control is disabled, the cursor is made visible and the keyboard and cursor
 
 The viking room is now textured and lit by a directional light and a separate ambient contribution. The panel lets you change its direction, intensity, color, ambient color, ambient strength, specular strength and shininess while the application is running. Setting intensity to zero removes direct lighting but leaves the ambient color visible. Start with camera control disabled, use the sliders, then press `F1` if you want to inspect the scene from another angle.
 
-![Viking room with the directional light controls](./assets/41_directional_light.png)
+![Viking room with the directional light controls](./assets/41_directional_light_1.png)
+
+![Viking room with a different directional light setup](./assets/41_directional_light_2.png.png)
+
+![Viking room with another lighting setup](./assets/41_directional_light_3.png.png)
 
 Common problems at this step:
 
